@@ -98,7 +98,7 @@ function renderFields() {
 
 function selectedFields() {
   return [...elements.fields.querySelectorAll("tr")]
-    .filter((row) => row.querySelector(".enabled").checked)
+    .filter((row) => row.querySelector(".enabled")?.checked)
     .map((row, index) => ({
       slot: index + 1,
       name: row.dataset.name,
@@ -109,6 +109,10 @@ function selectedFields() {
 function updateSummary() {
   const selected = selectedFields();
   elements.selection.textContent = `${selected.length} field${selected.length === 1 ? "" : "s"} enabled`;
+  for (const row of elements.fields.querySelectorAll("tr")) {
+    const enabled = row.querySelector(".enabled");
+    row.hidden = Boolean(enabled && elements.hideInactive.checked && !enabled.checked);
+  }
 }
 
 async function connect() {
@@ -390,6 +394,7 @@ elements.demo.addEventListener("click", startDemo);
 elements.load.addEventListener("click", loadFields);
 elements.apply.addEventListener("click", applyFields);
 elements.disconnect.addEventListener("click", disconnect);
+elements.hideInactive.addEventListener("change", updateSummary);
 elements.loadProfile.addEventListener("click", loadProfile);
 elements.applyProfile.addEventListener("click", applyProfile);
 

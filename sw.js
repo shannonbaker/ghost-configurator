@@ -1,4 +1,4 @@
-const CACHE = "ghost-configurator-poc-v6";
+const CACHE = "ghost-configurator-poc-v7";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./serial.js", "./protocol.js", "./ghost-api.js", "./widgets/default.ini", "./icon.svg", "./manifest.webmanifest"];
 self.addEventListener("install", (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS))));
 self.addEventListener("activate", (event) => event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))));
