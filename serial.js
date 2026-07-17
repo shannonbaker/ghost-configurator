@@ -1,4 +1,4 @@
-import { encodeMspV1, MspV1Parser } from "./protocol.js";
+import { encodeMspV1, encodeMspV2, MspParser } from "./protocol.js";
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -8,7 +8,7 @@ export class SerialSession extends EventTarget {
     this.port = null;
     this.reader = null;
     this.writer = null;
-    this.parser = new MspV1Parser();
+    this.parser = new MspParser();
     this.pendingMsp = new Map();
     this.textDecoder = new TextDecoder();
     this.cliText = "";
@@ -73,7 +73,7 @@ export class SerialSession extends EventTarget {
       }, timeoutMs);
       this.pendingMsp.set(command, { resolve, reject, timer });
       try {
-        await this.write(encodeMspV1(command, payload));
+        await this.write(command > 0xfe ? encodeMspV2(command, payload) : encodeMspV1(command, payload));
       } catch (error) {
         clearTimeout(timer);
         this.pendingMsp.delete(command);

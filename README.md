@@ -9,12 +9,15 @@ Betaflight GHOST field stream.
 - Reads FC variant, version, and board identity using MSPv1.
 - Enters the Betaflight CLI and discovers fields using `ghost_field list`.
 - Reads the current `ghost_field` table.
-- Clears, rewrites, saves, and reboots the FC when Apply is selected.
+- Uses the transactional GHOST MSPv2 v1.0 API when supported.
+- Retains clear/rewrite/save/reboot CLI fallback for older POC firmware.
 - Includes a demo mode and an offline service worker.
 
-The CLI integration is intentionally isolated in `serial.js` and `app.js`. It
-is the temporary adapter for the firmware currently available. A later version
-should replace it with common GHOST MSPv2 capabilities/configuration commands.
+The GHOST API integration is isolated in `ghost-api.js`. Firmware without the
+new commands automatically uses the temporary Betaflight CLI adapter.
+
+The versioned byte-level command contract is in
+[`docs/ghost-msp-config-v1.md`](docs/ghost-msp-config-v1.md).
 
 ## Run locally
 

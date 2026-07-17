@@ -25,6 +25,7 @@
     <section class="identity panel">
       <div><small>Firmware</small><strong id="fcIdentity">Not connected</strong></div>
       <div><small>Board</small><strong id="boardIdentity">—</strong></div>
+      <div><small>Interface</small><strong id="interfaceIdentity">—</strong></div>
       <div class="identity-actions"><button id="load" disabled>Load GHOST fields</button><button id="disconnect" disabled>Disconnect</button></div>
     </section>
 
@@ -36,10 +37,10 @@
           <tbody id="fields"><tr class="empty"><td colspan="4">Connect and load an FC, or use demo mode.</td></tr></tbody>
         </table>
       </div>
-      <div class="footer-actions"><p>The POC clears and rewrites the GHOST field table, then saves and reboots the FC.</p><button id="apply" class="primary" disabled>Apply &amp; reboot</button></div>
+      <div class="footer-actions"><p>MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
     </section>
   </main>
-  <footer>GHOST Configurator · Browser POC · MSP identity + Betaflight CLI adapter</footer>
+  <footer>GHOST Configurator · Browser POC · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

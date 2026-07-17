@@ -1,5 +1,6 @@
 import { MSP, decodeAscii, parseCapabilities, parseConfiguredFields } from "./protocol.js";
 import { SerialSession } from "./serial.js";
+import { GhostMspApi } from "./ghost-api.js";
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll("[id]")].map((element) => [element.id, element]),
@@ -9,6 +10,7 @@ let session = null;
 let capabilities = [];
 let configured = new Map();
 let demoMode = false;
+let ghostApi = null;
 
 function setStatus(message, level = "neutral") {
   elements.status.textContent = message;
@@ -73,7 +75,16 @@ async function connect() {
     if (variant !== "BTFL") {
       throw new Error(`POC CLI adapter supports BTFL; detected ${variant || "an unknown FC"}`);
     }
-    setStatus("Connected. Load GHOST fields to begin.", "good");
+    ghostApi = new GhostMspApi(session);
+    try {
+      const api = await ghostApi.getCapabilities();
+      elements.interfaceIdentity.textContent = `GHOST MSPv2 ${api.major}.${api.minor}`;
+      setStatus("Connected using the transactional GHOST MSPv2 API.", "good");
+    } catch (_) {
+      ghostApi = null;
+      elements.interfaceIdentity.textContent = "Legacy CLI fallback";
+      setStatus("Connected. This firmware will use the legacy CLI adapter.", "good");
+    }
   } catch (error) {
     setStatus(error.message, "bad");
     if (session?.port) await session.close().catch(() => {});
@@ -84,12 +95,23 @@ async function connect() {
 
 async function loadFields() {
   try {
-    setStatus("Entering CLI and reading GHOST capabilities…");
-    await session.enterCli();
-    const capabilityText = await session.runCli("ghost_field list");
-    const configuredText = await session.runCli("ghost_field");
-    capabilities = parseCapabilities(capabilityText);
-    configured = new Map(parseConfiguredFields(configuredText).map((field) => [field.name, field]));
+    if (ghostApi) {
+      setStatus("Reading GHOST MSPv2 field catalog and subscriptions…");
+      capabilities = await ghostApi.getFieldCatalog();
+      const subscriptions = await ghostApi.getSubscriptions();
+      const names = new Map(capabilities.map((field) => [field.id, field.name]));
+      configured = new Map(subscriptions.records.map((field) => {
+        const name = names.get(field.fieldId) ?? `FIELD_${field.fieldId}`;
+        return [name, { ...field, name }];
+      }));
+    } else {
+      setStatus("Entering CLI and reading GHOST capabilities…");
+      await session.enterCli();
+      const capabilityText = await session.runCli("ghost_field list");
+      const configuredText = await session.runCli("ghost_field");
+      capabilities = parseCapabilities(capabilityText);
+      configured = new Map(parseConfiguredFields(configuredText).map((field) => [field.name, field]));
+    }
     if (capabilities.length === 0) {
       throw new Error("This firmware did not return any GHOST fields. Confirm it includes the GHOST field patch.");
     }
@@ -115,15 +137,32 @@ async function applyFields() {
     elements.apply.disabled = true;
     setStatus("Writing configuration…");
     if (!demoMode) {
-      await session.runCli("ghost_field clear all");
-      for (const field of selected) {
-        await session.runCli(`ghost_field set ${field.slot} ${field.name} ${field.rateHz}`);
+      if (ghostApi) {
+        const byName = new Map(capabilities.map((field) => [field.name, field]));
+        const records = selected.map((field, index) => ({
+          slot: index, id: byName.get(field.name).id, rateHz: field.rateHz,
+        }));
+        const readback = await ghostApi.replaceSubscriptions(records);
+        const matches = readback.records.length === records.length && records.every((record, index) => {
+          const actual = readback.records[index];
+          return actual.slot === record.slot && actual.fieldId === record.id && actual.rateHz === record.rateHz;
+        });
+        if (!matches) throw new Error("FC read-back does not match the requested configuration");
+        configured = new Map(selected.map((field) => [field.name, field]));
+        setStatus("Configuration committed, persisted, and verified without rebooting.", "good");
+        elements.apply.disabled = false;
+        return;
+      } else {
+        await session.runCli("ghost_field clear all");
+        for (const field of selected) {
+          await session.runCli(`ghost_field set ${field.slot} ${field.name} ${field.rateHz}`);
+        }
+        setStatus("Saving and rebooting the flight controller…");
+        await session.runCli("save", 1500).catch(() => {}); // save reboots before another prompt
+        await session.close().catch(() => {});
+        session = null;
+        setConnected(false);
       }
-      setStatus("Saving and rebooting the flight controller…");
-      await session.runCli("save", 1500).catch(() => {}); // save reboots before another prompt
-      await session.close().catch(() => {});
-      session = null;
-      setConnected(false);
     }
     configured = new Map(selected.map((field) => [field.name, field]));
     setStatus(demoMode ? "Demo configuration applied." : "Configuration saved; flight controller is rebooting.", "good");
@@ -149,6 +188,7 @@ function startDemo() {
   ]);
   elements.fcIdentity.textContent = "BTFL 4.x (demo)";
   elements.boardIdentity.textContent = "MATEKF405SE";
+  elements.interfaceIdentity.textContent = "GHOST MSPv2 1.0 (demo)";
   renderFields();
   setConnected(true);
   elements.load.disabled = true;
@@ -160,15 +200,17 @@ async function disconnect() {
   if (demoMode) {
     demoMode = false;
   } else if (session) {
-    setStatus("Exiting CLI and rebooting…");
+    setStatus(ghostApi ? "Disconnecting…" : "Exiting CLI and rebooting…");
     await session.close({ reboot: true }).catch(() => {});
     session = null;
   }
   capabilities = [];
+  ghostApi = null;
   configured.clear();
   elements.fields.replaceChildren();
   elements.fcIdentity.textContent = "Not connected";
   elements.boardIdentity.textContent = "—";
+  elements.interfaceIdentity.textContent = "—";
   elements.selection.textContent = "0 fields enabled";
   setConnected(false);
   setStatus("Disconnected.");
