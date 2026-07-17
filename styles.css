@@ -28,7 +28,7 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .identity div:not(.identity-actions) { display:flex; flex-direction:column; }
 .identity small,.field-name+small { color:var(--muted); }
 .fields-panel { overflow:hidden; }
-.widget-panel { margin-top:18px; overflow:hidden; }
+.widget-panel { margin-bottom:18px; overflow:hidden; }
 .widget-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:0 24px 24px; }
 fieldset { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:0; padding:18px; border:1px solid var(--line); border-radius:8px; }
 legend { padding:0 7px; font-weight:750; }
