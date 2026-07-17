@@ -21,12 +21,14 @@ function setStatus(message, level = "neutral") {
 }
 
 function setConnected(connected) {
-  elements.connect.textContent = connected ? "Disconnect" : "Connect FC";
-  elements.connect.disabled = false;
-  elements.load.disabled = !connected;
-  elements.apply.disabled = !connected || capabilities.length === 0;
-  elements.loadProfile.disabled = !connected || !widgetProfileSupported;
-  elements.applyProfile.disabled = !connected || !widgetProfileSupported;
+  if (elements.connect) {
+    elements.connect.textContent = connected ? "Disconnect" : "Connect FC";
+    elements.connect.disabled = false;
+  }
+  if (elements.load) elements.load.disabled = !connected;
+  if (elements.apply) elements.apply.disabled = !connected || capabilities.length === 0;
+  if (elements.loadProfile) elements.loadProfile.disabled = !connected || !widgetProfileSupported;
+  if (elements.applyProfile) elements.applyProfile.disabled = !connected || !widgetProfileSupported;
 }
 
 function stopStreamStats() {
@@ -378,5 +380,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=12").catch(() => {});
 }
