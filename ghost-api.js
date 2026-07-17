@@ -14,6 +14,7 @@ const COMMAND = Object.freeze({
   PROFILE_CHUNK: 0x4f13,
   PROFILE_COMMIT: 0x4f14,
   PROFILE_ABORT: 0x4f15,
+  STREAM_STATS: 0x4f20,
 });
 
 const STATUS = ["OK", "Bad request length", "FC is armed", "Invalid transaction",
@@ -184,5 +185,16 @@ export class GhostMspApi {
       await this.session.requestMsp(COMMAND.PROFILE_ABORT, Uint8Array.of(transactionId)).catch(() => {});
       throw error;
     }
+  }
+
+  async getStreamStats() {
+    const data = check(await this.session.requestMsp(COMMAND.STREAM_STATS), 21);
+    return {
+      sampleTimeMs: readU32(data, 1),
+      wireBytes: readU32(data, 5),
+      frames: readU32(data, 9),
+      ghostFieldWireBytes: readU32(data, 13),
+      ghostProfileWireBytes: readU32(data, 17),
+    };
   }
 }

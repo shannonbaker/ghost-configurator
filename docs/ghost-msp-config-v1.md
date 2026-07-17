@@ -28,6 +28,7 @@ byte: `OK=0`, `BAD_LENGTH=1`, `ARMED=2`, `INVALID_TRANSACTION=3`,
 | Profile chunk | `0x4F13` | transaction `u8`, offset `u16`, bytes | next offset `u16` |
 | Profile commit | `0x4F14` | transaction `u8`, flags `u8` | revision, length, CRC32 |
 | Profile abort | `0x4F15` | transaction `u8` | none |
+| Stream statistics | `0x4F20` | empty | sample milliseconds and cumulative DisplayPort counters |
 
 A field descriptor is `field_id u8`, `type u8`, `unit u8`, `max_rate_hz u8`,
 `name_length u8`, followed by the UTF-8 name. Types are `U8=1`, `I16=2`,
@@ -38,6 +39,9 @@ A field descriptor is `field_id u8`, `type u8`, `unit u8`, `max_rate_hz u8`,
 A subscription record is `slot u8`, `field_id u8`, `rate_hz u8`.
 `next_slot=255` and `next_field_id=0` mark the final page. Clear slot 255 clears
 the full staged table. Commit flag bit zero requests persistence.
+
+Capability bits are transactional configuration bit 0, live apply bit 1,
+persistence bit 2, widget profiles bit 3, and stream statistics bit 4.
 
 Mutation commands are rejected while armed. Clients must reject unsupported
 major versions, ignore unknown capability bits, begin from the latest revision,

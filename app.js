@@ -12,6 +12,9 @@ let configured = new Map();
 let demoMode = false;
 let ghostApi = null;
 let widgetProfileSupported = false;
+let streamStatsTimer = null;
+let streamStatsPrevious = null;
+let streamStatsGeneration = 0;
 
 function setStatus(message, level = "neutral") {
   elements.status.textContent = message;
@@ -26,6 +29,54 @@ function setConnected(connected) {
   elements.disconnect.disabled = !connected;
   elements.loadProfile.disabled = !connected || !widgetProfileSupported;
   elements.applyProfile.disabled = !connected || !widgetProfileSupported;
+}
+
+function stopStreamStats() {
+  streamStatsGeneration += 1;
+  if (streamStatsTimer !== null) clearTimeout(streamStatsTimer);
+  streamStatsTimer = null;
+  streamStatsPrevious = null;
+  elements.streamRate.textContent = "—";
+  elements.streamRate.removeAttribute("title");
+}
+
+function counterDelta(current, previous) {
+  return (current - previous) >>> 0;
+}
+
+function startStreamStats() {
+  stopStreamStats();
+  const generation = streamStatsGeneration;
+  const poll = async () => {
+    if (generation !== streamStatsGeneration || !ghostApi) return;
+    try {
+      const current = await ghostApi.getStreamStats();
+      if (streamStatsPrevious) {
+        const elapsedMs = counterDelta(current.sampleTimeMs, streamStatsPrevious.sampleTimeMs);
+        if (elapsedMs > 0) {
+          const totalBytes = counterDelta(current.wireBytes, streamStatsPrevious.wireBytes);
+          const fieldBytes = counterDelta(current.ghostFieldWireBytes,
+            streamStatsPrevious.ghostFieldWireBytes);
+          const profileBytes = counterDelta(current.ghostProfileWireBytes,
+            streamStatsPrevious.ghostProfileWireBytes);
+          const frames = counterDelta(current.frames, streamStatsPrevious.frames);
+          const kbps = (bytes) => bytes * 8 / elapsedMs;
+          const otherBytes = Math.max(0, totalBytes - fieldBytes - profileBytes);
+          elements.streamRate.textContent = `${kbps(totalBytes).toFixed(1)} kbps`;
+          elements.streamRate.title = `Legacy/other ${kbps(otherBytes).toFixed(1)} kbps · ` +
+            `GHOST fields ${kbps(fieldBytes).toFixed(1)} kbps · ` +
+            `profile ${kbps(profileBytes).toFixed(1)} kbps · ` +
+            `${(frames * 1000 / elapsedMs).toFixed(1)} frames/s`;
+        }
+      }
+      streamStatsPrevious = current;
+    } catch (error) {
+      elements.streamRate.textContent = "Unavailable";
+      elements.streamRate.title = error.message;
+    }
+    if (generation === streamStatsGeneration) streamStatsTimer = setTimeout(poll, 1000);
+  };
+  poll();
 }
 
 function renderFields() {
@@ -84,10 +135,12 @@ async function connect() {
       widgetProfileSupported = Boolean(api.flags & 0x08);
       elements.interfaceIdentity.textContent = `GHOST MSPv2 ${api.major}.${api.minor}`;
       setConnected(true);
+      if (api.flags & 0x10) startStreamStats();
       setStatus("Connected using the transactional GHOST MSPv2 API.", "good");
     } catch (_) {
       ghostApi = null;
       widgetProfileSupported = false;
+      stopStreamStats();
       elements.interfaceIdentity.textContent = "Legacy CLI fallback";
       setStatus("Connected. This firmware will use the legacy CLI adapter.", "good");
     }
@@ -301,6 +354,7 @@ function startDemo() {
   elements.fcIdentity.textContent = "BTFL 4.x (demo)";
   elements.boardIdentity.textContent = "MATEKF405SE";
   elements.interfaceIdentity.textContent = "GHOST MSPv2 1.0 (demo)";
+  elements.streamRate.textContent = "Demo";
   widgetProfileSupported = true;
   renderFields();
   setConnected(true);
@@ -310,6 +364,7 @@ function startDemo() {
 }
 
 async function disconnect() {
+  stopStreamStats();
   if (demoMode) {
     demoMode = false;
   } else if (session) {

@@ -51,6 +51,22 @@ test("CRC32 matches the standard check value", () => {
   assert.equal(crc32(new TextEncoder().encode("123456789")), 0xcbf43926);
 });
 
+test("reads cumulative FC DisplayPort stream statistics", async () => {
+  const u32 = (value) => [value & 255, (value >>> 8) & 255,
+    (value >>> 16) & 255, value >>> 24];
+  const session = new MockSession(new Map([
+    [0x4f20, Uint8Array.of(0, ...u32(123456), ...u32(654321), ...u32(4321),
+      ...u32(12000), ...u32(3400))],
+  ]));
+  assert.deepEqual(await new GhostMspApi(session).getStreamStats(), {
+    sampleTimeMs: 123456,
+    wireBytes: 654321,
+    frames: 4321,
+    ghostFieldWireBytes: 12000,
+    ghostProfileWireBytes: 3400,
+  });
+});
+
 test("performs clear, staged writes, validation, commit, and readback", async () => {
   const responses = new Map([
     [0x4f00, Uint8Array.of(0, 1, 0, 7, 0, 128, 50, 0x34, 0x12)],

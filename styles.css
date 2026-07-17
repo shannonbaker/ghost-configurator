@@ -24,7 +24,7 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .status[data-level="good"] { border-color:#2d6a4f; background:#10251b; color:#8ce9ba; }
 .status[data-level="bad"] { border-color:#743c3b; background:#281516; color:#ffaaa3; }
 .panel { border:1px solid var(--line); border-radius:10px; background:linear-gradient(150deg, #151e26, #10171d); box-shadow:0 18px 45px #0004; }
-.identity { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:28px; align-items:center; padding:20px 22px; margin-bottom:18px; }
+.identity { display:grid; grid-template-columns:repeat(4,1fr) auto; gap:28px; align-items:center; padding:20px 22px; margin-bottom:18px; }
 .identity div:not(.identity-actions) { display:flex; flex-direction:column; }
 .identity small,.field-name+small { color:var(--muted); }
 .fields-panel { overflow:hidden; }

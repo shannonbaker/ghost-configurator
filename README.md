@@ -11,6 +11,8 @@ GHOST field stream and offline VRX widget profile.
 - Reads the current `ghost_field` table.
 - Uses the transactional GHOST MSPv2 v1.0 API when supported.
 - Reads and atomically uploads the AHI/sticks widget profile through MSPv2.
+- Shows the FC-side MSP DisplayPort wire rate while the configurator is
+  connected; all rate calculations run in the browser.
 - Stores renderer-only options as an opaque INI document on the FC, allowing
   future widget keys without matching FC parsing code.
 - Retains clear/rewrite/save/reboot CLI fallback for older POC firmware.
