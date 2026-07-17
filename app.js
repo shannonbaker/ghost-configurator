@@ -110,8 +110,9 @@ function updateSummary() {
   const selected = selectedFields();
   elements.selection.textContent = `${selected.length} field${selected.length === 1 ? "" : "s"} enabled`;
   for (const row of elements.fields.querySelectorAll("tr")) {
-    const enabled = row.querySelector(".enabled");
-    row.hidden = Boolean(enabled && elements.hideInactive.checked && !enabled.checked);
+    const onCheckbox = row.querySelector(".enabled");
+    row.classList.toggle("field-filtered",
+      Boolean(onCheckbox && elements.hideInactive.checked && !onCheckbox.checked));
   }
 }
 

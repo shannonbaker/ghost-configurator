@@ -41,6 +41,7 @@ label input:not([type="checkbox"]),select { width:100%; padding:8px; border:1px 
 .compact-toggle { flex-direction:row; align-items:center; gap:7px; color:var(--text); font-size:13px; cursor:pointer; }
 .table-wrap { overflow:auto; }
 table { width:100%; border-collapse:collapse; }
+.field-filtered { display:none; }
 th,td { padding:13px 24px; border-top:1px solid var(--line); text-align:left; }
 th { color:var(--muted); font-size:12px; font-weight:650; text-transform:uppercase; letter-spacing:.07em; }
 td:first-child,th:first-child { width:58px; }
