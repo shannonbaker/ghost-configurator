@@ -39,6 +39,31 @@
       </div>
       <div class="footer-actions"><p>MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
     </section>
+
+    <section class="panel widget-panel">
+      <div class="section-heading"><div><p class="eyebrow">VRX PROFILE</p><h2>Widgets</h2></div><span id="profileInfo">Not loaded</span></div>
+      <div class="widget-grid">
+        <fieldset><legend><input id="ahiVisible" type="checkbox" checked> AHI</legend>
+          <label>Pitch field<input id="ahiPitch" value="PITCH"></label><label>Roll field<input id="ahiRoll" value="ROLL"></label>
+          <label>Centre X (0–10000)<input id="ahiX" type="number" min="0" max="10000" value="5000"></label>
+          <label>Centre Y (0–10000)<input id="ahiY" type="number" min="0" max="10000" value="5000"></label>
+          <label>Width<input id="ahiWidth" type="number" min="1" max="10000" value="4000"></label>
+          <label>Smoothing (0–10)<input id="ahiSmoothing" type="number" min="0" max="10" step="0.1" value="0"></label>
+          <label>Maximum FPS<input id="ahiFps" type="number" min="1" max="60" value="30"></label>
+          <label class="check"><input id="ahiReversePitch" type="checkbox"> Reverse pitch</label>
+          <label class="check"><input id="ahiReverseRoll" type="checkbox"> Reverse roll</label>
+        </fieldset>
+        <fieldset><legend><input id="sticksVisible" type="checkbox" checked> Sticks</legend>
+          <label>Transmitter mode<select id="sticksMode"><option value="2">Mode 2</option><option value="1">Mode 1</option></select></label>
+          <label>Roll field<input id="sticksRoll" value="RC1"></label><label>Pitch field<input id="sticksPitch" value="RC2"></label>
+          <label>Yaw field<input id="sticksYaw" value="RC3"></label><label>Throttle field<input id="sticksThrottle" value="RC4"></label>
+          <label>X position<input id="sticksX" type="number" value="1340"></label><label>Y position<input id="sticksY" type="number" value="750"></label>
+          <label>Size (%)<input id="sticksSize" type="number" min="20" max="300" value="100"></label>
+          <label>Maximum FPS<input id="sticksFps" type="number" min="1" max="60" value="30"></label>
+        </fieldset>
+      </div>
+      <div class="footer-actions"><p>The FC stores this profile and forwards it to the VRX over MSP DisplayPort. No VRX Wi-Fi is required.</p><div class="actions"><button id="loadProfile" disabled>Read profile</button><button id="applyProfile" class="primary" disabled>Save widget profile</button></div></div>
+    </section>
   </main>
   <footer>GHOST Configurator · Browser POC · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
   <script type="module" src="./app.js"></script>

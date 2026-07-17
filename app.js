@@ -11,6 +11,7 @@ let capabilities = [];
 let configured = new Map();
 let demoMode = false;
 let ghostApi = null;
+let widgetProfileSupported = false;
 
 function setStatus(message, level = "neutral") {
   elements.status.textContent = message;
@@ -23,6 +24,8 @@ function setConnected(connected) {
   elements.load.disabled = !connected;
   elements.apply.disabled = !connected || capabilities.length === 0;
   elements.disconnect.disabled = !connected;
+  elements.loadProfile.disabled = !connected || !widgetProfileSupported;
+  elements.applyProfile.disabled = !connected || !widgetProfileSupported;
 }
 
 function renderFields() {
@@ -78,10 +81,13 @@ async function connect() {
     ghostApi = new GhostMspApi(session);
     try {
       const api = await ghostApi.getCapabilities();
+      widgetProfileSupported = Boolean(api.flags & 0x08);
       elements.interfaceIdentity.textContent = `GHOST MSPv2 ${api.major}.${api.minor}`;
+      setConnected(true);
       setStatus("Connected using the transactional GHOST MSPv2 API.", "good");
     } catch (_) {
       ghostApi = null;
+      widgetProfileSupported = false;
       elements.interfaceIdentity.textContent = "Legacy CLI fallback";
       setStatus("Connected. This firmware will use the legacy CLI adapter.", "good");
     }
@@ -91,6 +97,112 @@ async function connect() {
     session = null;
     setConnected(false);
   }
+}
+
+function parseIni(text) {
+  const sections = new Map();
+  let section = null;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#") || line.startsWith(";")) continue;
+    const heading = line.match(/^\[([^\]]+)\]$/);
+    if (heading) {
+      section = {};
+      sections.set(heading[1], section);
+      continue;
+    }
+    const equals = line.indexOf("=");
+    if (section && equals > 0) section[line.slice(0, equals).trim()] = line.slice(equals + 1).trim();
+  }
+  return sections;
+}
+
+const truthy = (value) => /^(1|true|yes|on)$/i.test(value ?? "");
+function setValue(id, value) { if (value !== undefined) elements[id].value = value; }
+
+function populateProfile(text) {
+  const sections = parseIni(text);
+  const ahi = sections.get("ahi.0");
+  if (ahi) {
+    elements.ahiVisible.checked = truthy(ahi.visible);
+    setValue("ahiPitch", ahi.pitch_field); setValue("ahiRoll", ahi.roll_field);
+    setValue("ahiX", ahi.center_x); setValue("ahiY", ahi.center_y);
+    setValue("ahiWidth", ahi.width); setValue("ahiSmoothing", ahi.smoothing);
+    setValue("ahiFps", ahi.max_fps);
+    elements.ahiReversePitch.checked = truthy(ahi.reverse_pitch);
+    elements.ahiReverseRoll.checked = truthy(ahi.reverse_roll);
+  }
+  const sticks = sections.get("sticks.0");
+  if (sticks) {
+    elements.sticksVisible.checked = truthy(sticks.visible);
+    setValue("sticksMode", sticks.mode); setValue("sticksRoll", sticks.roll_field);
+    setValue("sticksPitch", sticks.pitch_field); setValue("sticksYaw", sticks.yaw_field);
+    setValue("sticksThrottle", sticks.throttle_field); setValue("sticksX", sticks.position_x);
+    setValue("sticksY", sticks.position_y); setValue("sticksSize", sticks.size_percent);
+    setValue("sticksFps", sticks.max_fps);
+  }
+}
+
+function fieldName(id) {
+  const value = elements[id].value.trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9_]{0,31}$/.test(value)) throw new Error(`${id} is not a valid field name`);
+  return value;
+}
+
+function numberValue(id, minimum, maximum) {
+  const value = Number(elements[id].value);
+  if (!Number.isFinite(value) || value < minimum || value > maximum) {
+    throw new Error(`${id} must be between ${minimum} and ${maximum}`);
+  }
+  return value;
+}
+
+function buildProfile() {
+  const lines = [
+    "; GHOST widget profile v1", "[ahi.0]",
+    `pitch_field=${fieldName("ahiPitch")}`, `roll_field=${fieldName("ahiRoll")}`,
+    `center_x=${numberValue("ahiX", 0, 10000)}`, `center_y=${numberValue("ahiY", 0, 10000)}`,
+    `width=${numberValue("ahiWidth", 1, 10000)}`, "height=5000",
+    `visible=${elements.ahiVisible.checked}`, `reverse_pitch=${elements.ahiReversePitch.checked}`,
+    `reverse_roll=${elements.ahiReverseRoll.checked}`,
+    `smoothing=${numberValue("ahiSmoothing", 0, 10)}`,
+    `max_fps=${numberValue("ahiFps", 1, 60)}`, "stale_timeout_ms=0", "", "[sticks.0]",
+    `mode=${numberValue("sticksMode", 1, 2)}`, `visible=${elements.sticksVisible.checked}`,
+    `roll_field=${fieldName("sticksRoll")}`, `pitch_field=${fieldName("sticksPitch")}`,
+    `yaw_field=${fieldName("sticksYaw")}`, `throttle_field=${fieldName("sticksThrottle")}`,
+    "reverse_roll=false", "reverse_pitch=false", "reverse_yaw=false", "reverse_throttle=false",
+    `position_x=${numberValue("sticksX", -4096, 4096)}`, `position_y=${numberValue("sticksY", -4096, 4096)}`,
+    `size_percent=${numberValue("sticksSize", 20, 300)}`,
+    `max_fps=${numberValue("sticksFps", 1, 60)}`, "stale_timeout_ms=500", "",
+  ];
+  return lines.join("\n");
+}
+
+async function loadProfile() {
+  try {
+    setStatus("Reading widget profile from the flight controller…");
+    const profile = await ghostApi.readProfile();
+    if (profile.length) populateProfile(profile.text);
+    elements.profileInfo.textContent = `Revision ${profile.revision} · ${profile.length} bytes`;
+    setStatus(profile.length ? "Widget profile loaded from FC." : "FC has no widget profile; showing defaults.", "good");
+  } catch (error) { setStatus(error.message, "bad"); }
+}
+
+async function applyProfile() {
+  try {
+    const text = buildProfile();
+    elements.applyProfile.disabled = true;
+    setStatus("Storing widget profile on the flight controller…");
+    if (demoMode) {
+      elements.profileInfo.textContent = `Demo · ${new TextEncoder().encode(text).length} bytes`;
+      setStatus("Demo widget profile generated.", "good");
+    } else {
+      const result = await ghostApi.uploadProfile(text);
+      elements.profileInfo.textContent = `Revision ${result.revision} · ${result.length} bytes`;
+      setStatus("Widget profile persisted. The FC will deliver it to the VRX over DisplayPort.", "good");
+    }
+  } catch (error) { setStatus(error.message, "bad"); }
+  finally { elements.applyProfile.disabled = !widgetProfileSupported; }
 }
 
 async function loadFields() {
@@ -189,6 +301,7 @@ function startDemo() {
   elements.fcIdentity.textContent = "BTFL 4.x (demo)";
   elements.boardIdentity.textContent = "MATEKF405SE";
   elements.interfaceIdentity.textContent = "GHOST MSPv2 1.0 (demo)";
+  widgetProfileSupported = true;
   renderFields();
   setConnected(true);
   elements.load.disabled = true;
@@ -206,6 +319,7 @@ async function disconnect() {
   }
   capabilities = [];
   ghostApi = null;
+  widgetProfileSupported = false;
   configured.clear();
   elements.fields.replaceChildren();
   elements.fcIdentity.textContent = "Not connected";
@@ -221,6 +335,8 @@ elements.demo.addEventListener("click", startDemo);
 elements.load.addEventListener("click", loadFields);
 elements.apply.addEventListener("click", applyFields);
 elements.disconnect.addEventListener("click", disconnect);
+elements.loadProfile.addEventListener("click", loadProfile);
+elements.applyProfile.addEventListener("click", applyProfile);
 
 setConnected(false);
 if (!("serial" in navigator)) {

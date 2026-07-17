@@ -8,14 +8,36 @@ const COMMAND = Object.freeze({
   CONFIG_VALIDATE: 0x4f06,
   CONFIG_COMMIT: 0x4f07,
   CONFIG_ABORT: 0x4f08,
+  PROFILE_INFO: 0x4f10,
+  PROFILE_READ: 0x4f11,
+  PROFILE_BEGIN: 0x4f12,
+  PROFILE_CHUNK: 0x4f13,
+  PROFILE_COMMIT: 0x4f14,
+  PROFILE_ABORT: 0x4f15,
 });
 
 const STATUS = ["OK", "Bad request length", "FC is armed", "Invalid transaction",
   "Invalid slot", "Unsupported field", "Invalid rate", "Stale configuration revision",
-  "Invalid staged configuration"];
+  "Invalid staged configuration", "Widget profile is too large", "Invalid profile offset",
+  "Widget profile CRC mismatch"];
 
 const readU16 = (data, offset) => data[offset] | (data[offset + 1] << 8);
 const u16 = (value) => Uint8Array.of(value & 0xff, value >> 8);
+const readU32 = (data, offset) => (data[offset] | (data[offset + 1] << 8) |
+  (data[offset + 2] << 16) | (data[offset + 3] << 24)) >>> 0;
+const u32 = (value) => Uint8Array.of(value & 0xff, (value >>> 8) & 0xff,
+  (value >>> 16) & 0xff, value >>> 24);
+
+export function crc32(data) {
+  let crc = 0xffffffff;
+  for (const byte of data) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
 
 function check(response, minimumLength = 1) {
   if (response.length < minimumLength) throw new Error("Truncated GHOST MSPv2 response");
@@ -102,6 +124,64 @@ export class GhostMspApi {
       return this.getSubscriptions();
     } catch (error) {
       await this.session.requestMsp(COMMAND.CONFIG_ABORT, Uint8Array.of(transactionId)).catch(() => {});
+      throw error;
+    }
+  }
+
+  async getProfileInfo() {
+    const data = check(await this.session.requestMsp(COMMAND.PROFILE_INFO), 13);
+    return { formatMajor: data[1], formatMinor: data[2], maxLength: readU16(data, 3),
+      revision: readU16(data, 5), length: readU16(data, 7), crc32: readU32(data, 9) };
+  }
+
+  async readProfile() {
+    const info = await this.getProfileInfo();
+    const profile = new Uint8Array(info.length);
+    let offset = 0;
+    while (offset < info.length) {
+      const request = new Uint8Array([...u16(offset), Math.min(128, info.length - offset)]);
+      const data = check(await this.session.requestMsp(COMMAND.PROFILE_READ, request), 12);
+      const returnedOffset = readU16(data, 9);
+      const length = data[11];
+      if (returnedOffset !== offset || data.length !== 12 + length || length === 0) {
+        throw new Error("Invalid widget profile read response");
+      }
+      profile.set(data.slice(12), offset);
+      offset += length;
+    }
+    if (crc32(profile) !== info.crc32) throw new Error("FC widget profile failed CRC verification");
+    return { ...info, text: new TextDecoder().decode(profile) };
+  }
+
+  async uploadProfile(text) {
+    const bytes = new TextEncoder().encode(text);
+    const info = await this.getProfileInfo();
+    if (bytes.length === 0 || bytes.length > info.maxLength) {
+      throw new Error(`Widget profile is ${bytes.length} bytes; FC limit is ${info.maxLength}`);
+    }
+    let revision = (info.revision + 1) & 0xffff;
+    if (revision === 0) revision = 1;
+    const checksum = crc32(bytes);
+    const beginPayload = new Uint8Array([
+      ...u16(info.revision), ...u16(revision), ...u16(bytes.length), ...u32(checksum),
+    ]);
+    const begin = check(await this.session.requestMsp(COMMAND.PROFILE_BEGIN, beginPayload), 4);
+    const transactionId = begin[1];
+    try {
+      for (let offset = 0; offset < bytes.length; offset += 128) {
+        const chunk = bytes.slice(offset, offset + 128);
+        const payload = new Uint8Array(3 + chunk.length);
+        payload[0] = transactionId;
+        payload.set(u16(offset), 1);
+        payload.set(chunk, 3);
+        check(await this.session.requestMsp(COMMAND.PROFILE_CHUNK, payload), 3);
+      }
+      const committed = check(await this.session.requestMsp(COMMAND.PROFILE_COMMIT,
+        Uint8Array.of(transactionId, 1), 5000), 9);
+      return { revision: readU16(committed, 1), length: readU16(committed, 3),
+        crc32: readU32(committed, 5) };
+    } catch (error) {
+      await this.session.requestMsp(COMMAND.PROFILE_ABORT, Uint8Array.of(transactionId)).catch(() => {});
       throw error;
     }
   }

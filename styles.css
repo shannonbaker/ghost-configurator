@@ -28,6 +28,13 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .identity div:not(.identity-actions) { display:flex; flex-direction:column; }
 .identity small,.field-name+small { color:var(--muted); }
 .fields-panel { overflow:hidden; }
+.widget-panel { margin-top:18px; overflow:hidden; }
+.widget-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:0 24px 24px; }
+fieldset { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:0; padding:18px; border:1px solid var(--line); border-radius:8px; }
+legend { padding:0 7px; font-weight:750; }
+label { display:flex; flex-direction:column; gap:5px; color:var(--muted); font-size:12px; }
+label.check { flex-direction:row; align-items:center; }
+label input:not([type="checkbox"]),select { width:100%; padding:8px; border:1px solid #3a4854; border-radius:5px; background:#0c1318; color:var(--text); font:inherit; }
 .section-heading { display:flex; justify-content:space-between; align-items:end; padding:24px 24px 18px; }
 .section-heading>span { color:var(--muted); }
 .table-wrap { overflow:auto; }
@@ -42,4 +49,4 @@ input[type="number"] { width:78px; margin-right:7px; padding:7px 8px; border:1px
 .empty td { padding:42px; text-align:center; color:var(--muted); }
 .footer-actions { justify-content:space-between; padding:18px 24px; border-top:1px solid var(--line); }
 footer { padding:22px; border-top:1px solid var(--line); color:#637482; text-align:center; font-size:12px; }
-@media (max-width:720px) { main{padding:34px 0}.hero{align-items:flex-start;flex-direction:column}.identity{grid-template-columns:1fr 1fr}.identity-actions{grid-column:1/-1}.footer-actions{align-items:flex-start;flex-direction:column}.footer-actions button{width:100%}th,td{padding:12px}.poc{display:none} }
+@media (max-width:720px) { main{padding:34px 0}.hero{align-items:flex-start;flex-direction:column}.identity{grid-template-columns:1fr 1fr}.identity-actions{grid-column:1/-1}.widget-grid{grid-template-columns:1fr;padding:0 12px 18px}fieldset{grid-template-columns:1fr}.footer-actions{align-items:flex-start;flex-direction:column}.footer-actions button{width:100%}th,td{padding:12px}.poc{display:none} }
