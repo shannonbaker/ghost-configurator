@@ -14,6 +14,7 @@ let widgetProfileSupported = false;
 let streamStatsTimer = null;
 let streamStatsPrevious = null;
 let streamStatsGeneration = 0;
+let profileSaveQueue = Promise.resolve();
 
 function setStatus(message, level = "neutral") {
   elements.status.textContent = message;
@@ -324,6 +325,11 @@ async function applyProfile() {
   }
 }
 
+function queueProfileSave() {
+  profileSaveQueue = profileSaveQueue.catch(() => {}).then(() => applyProfile());
+  return profileSaveQueue;
+}
+
 async function loadFields() {
   try {
     if (ghostApi) {
@@ -446,10 +452,20 @@ elements.load.addEventListener("click", loadFields);
 elements.apply.addEventListener("click", applyFields);
 elements.hideInactive.addEventListener("change", updateSummary);
 elements.loadProfile.addEventListener("click", loadProfile);
-elements.applyProfile.addEventListener("click", applyProfile);
-for (const id of ["ahiVisible", "ahiPitch", "ahiRoll", "sticksVisible", "sticksRoll",
-  "sticksPitch", "sticksYaw", "sticksThrottle"]) {
+elements.applyProfile.addEventListener("click", queueProfileSave);
+for (const id of ["ahiPitch", "ahiRoll", "sticksRoll", "sticksPitch", "sticksYaw",
+  "sticksThrottle"]) {
   elements[id].addEventListener("change", () => enableRequiredWidgetFields(true));
+}
+for (const id of ["ahiVisible", "sticksVisible"]) {
+  elements[id].addEventListener("change", () => {
+    enableRequiredWidgetFields(true);
+    if (!session || !ghostApi || !widgetProfileSupported) {
+      setStatus("Connect a compatible flight controller before changing widget enable state.", "bad");
+      return;
+    }
+    queueProfileSave();
+  });
 }
 
 setConnected(false);
@@ -457,5 +473,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=14").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=15").catch(() => {});
 }
