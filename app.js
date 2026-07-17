@@ -158,7 +158,7 @@ function enableRequiredWidgetFields(notify = false) {
   }
   updateSummary();
   if (notify && enabled.length) {
-    setStatus(`Enabled required field${enabled.length === 1 ? "" : "s"}: ${enabled.join(", ")}.`, "good");
+    setStatus(`Enabled required field${enabled.length === 1 ? "" : "s"}: ${enabled.join(", ")}. Save widget & fields to persist.`, "good");
   }
   const unavailable = [...required].filter((name) => !available.has(name));
   if (notify && capabilities.length && unavailable.length) {
@@ -306,15 +306,22 @@ async function loadProfile() {
 
 async function applyProfile() {
   try {
+    if (!capabilities.length) await loadFields();
     enableRequiredWidgetFields(true);
     const text = buildProfile();
+    const selected = validateSelectedFields();
     elements.applyProfile.disabled = true;
-    setStatus("Storing widget profile on the flight controller…");
+    elements.apply.disabled = true;
+    setStatus("Storing field subscriptions and widget profile on the flight controller…");
+    await persistMspFieldSubscriptions(selected);
     const result = await ghostApi.uploadProfile(text);
     elements.profileInfo.textContent = `Revision ${result.revision} · ${result.length} bytes`;
-    setStatus("Widget profile persisted. The FC will deliver it to the VRX over DisplayPort.", "good");
+    setStatus("Widget profile and field subscriptions persisted. The FC will deliver them over DisplayPort.", "good");
   } catch (error) { setStatus(error.message, "bad"); }
-  finally { elements.applyProfile.disabled = !widgetProfileSupported; }
+  finally {
+    elements.applyProfile.disabled = !widgetProfileSupported;
+    elements.apply.disabled = capabilities.length === 0;
+  }
 }
 
 async function loadFields() {
@@ -347,32 +354,44 @@ async function loadFields() {
   }
 }
 
-async function applyFields() {
-  enableRequiredWidgetFields(true);
+function validateSelectedFields() {
   const selected = selectedFields();
+  const available = new Set(capabilities.map((field) => field.name.toUpperCase()));
+  const missing = [...requiredWidgetFields()].filter((name) => !available.has(name));
+  if (missing.length) {
+    throw new Error(`Required field${missing.length === 1 ? "" : "s"} unavailable: ${missing.join(", ")}`);
+  }
   for (const field of selected) {
     const capability = capabilities.find((candidate) => candidate.name === field.name);
     if (!Number.isInteger(field.rateHz) || field.rateHz < 1 || field.rateHz > capability.maxHz) {
-      setStatus(`${field.name} must be between 1 and ${capability.maxHz} Hz.`, "bad");
-      return;
+      throw new Error(`${field.name} must be between 1 and ${capability.maxHz} Hz.`);
     }
   }
+  return selected;
+}
 
+async function persistMspFieldSubscriptions(selected) {
+  const byName = new Map(capabilities.map((field) => [field.name, field]));
+  const records = selected.map((field, index) => ({
+    slot: index, id: byName.get(field.name).id, rateHz: field.rateHz,
+  }));
+  const readback = await ghostApi.replaceSubscriptions(records);
+  const matches = readback.records.length === records.length && records.every((record, index) => {
+    const actual = readback.records[index];
+    return actual.slot === record.slot && actual.fieldId === record.id && actual.rateHz === record.rateHz;
+  });
+  if (!matches) throw new Error("FC field read-back does not match the requested configuration");
+  configured = new Map(selected.map((field) => [field.name, field]));
+}
+
+async function applyFields() {
   try {
+    enableRequiredWidgetFields(true);
+    const selected = validateSelectedFields();
     elements.apply.disabled = true;
     setStatus("Writing configuration…");
     if (ghostApi) {
-      const byName = new Map(capabilities.map((field) => [field.name, field]));
-      const records = selected.map((field, index) => ({
-        slot: index, id: byName.get(field.name).id, rateHz: field.rateHz,
-      }));
-      const readback = await ghostApi.replaceSubscriptions(records);
-      const matches = readback.records.length === records.length && records.every((record, index) => {
-        const actual = readback.records[index];
-        return actual.slot === record.slot && actual.fieldId === record.id && actual.rateHz === record.rateHz;
-      });
-      if (!matches) throw new Error("FC read-back does not match the requested configuration");
-      configured = new Map(selected.map((field) => [field.name, field]));
+      await persistMspFieldSubscriptions(selected);
       setStatus("Configuration committed, persisted, and verified without rebooting.", "good");
       elements.apply.disabled = false;
       return;
@@ -438,5 +457,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=13").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=14").catch(() => {});
 }
