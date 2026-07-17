@@ -90,10 +90,18 @@ function renderFields() {
       <td><input class="rate" type="number" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}"><span>Hz</span></td>
       <td>${capability.maxHz} Hz</td>`;
     row.dataset.name = capability.name;
-    row.querySelectorAll("input").forEach((input) => input.addEventListener("change", updateSummary));
+    const onCheckbox = row.querySelector(".enabled");
+    onCheckbox.addEventListener("change", () => {
+      if (!onCheckbox.checked && requiredWidgetFields().has(row.dataset.name.toUpperCase())) {
+        onCheckbox.checked = true;
+        setStatus(`${row.dataset.name} must remain On while it is required by an enabled widget.`, "neutral");
+      }
+      updateSummary();
+    });
+    row.querySelector(".rate").addEventListener("change", updateSummary);
     elements.fields.append(row);
   }
-  updateSummary();
+  enableRequiredWidgetFields();
 }
 
 function selectedFields() {
@@ -114,6 +122,49 @@ function updateSummary() {
     row.classList.toggle("field-filtered",
       Boolean(onCheckbox && elements.hideInactive.checked && !onCheckbox.checked));
   }
+}
+
+function requiredWidgetFields() {
+  const required = new Set();
+  const add = (id) => {
+    const name = elements[id].value.trim().toUpperCase();
+    if (name) required.add(name);
+  };
+  if (elements.ahiVisible.checked) {
+    add("ahiPitch");
+    add("ahiRoll");
+  }
+  if (elements.sticksVisible.checked) {
+    add("sticksRoll");
+    add("sticksPitch");
+    add("sticksYaw");
+    add("sticksThrottle");
+  }
+  return required;
+}
+
+function enableRequiredWidgetFields(notify = false) {
+  const required = requiredWidgetFields();
+  const enabled = [];
+  const available = new Set();
+  for (const row of elements.fields.querySelectorAll("tr[data-name]")) {
+    const name = row.dataset.name.toUpperCase();
+    available.add(name);
+    const onCheckbox = row.querySelector(".enabled");
+    if (required.has(name) && !onCheckbox.checked) {
+      onCheckbox.checked = true;
+      enabled.push(row.dataset.name);
+    }
+  }
+  updateSummary();
+  if (notify && enabled.length) {
+    setStatus(`Enabled required field${enabled.length === 1 ? "" : "s"}: ${enabled.join(", ")}.`, "good");
+  }
+  const unavailable = [...required].filter((name) => !available.has(name));
+  if (notify && capabilities.length && unavailable.length) {
+    setStatus(`Required field${unavailable.length === 1 ? "" : "s"} unavailable: ${unavailable.join(", ")}.`, "bad");
+  }
+  return enabled;
 }
 
 async function connect() {
@@ -205,6 +256,7 @@ function populateProfile(text) {
     setValue("sticksY", sticks.position_y); setValue("sticksSize", sticks.size_percent);
     setValue("sticksFps", sticks.max_fps);
   }
+  enableRequiredWidgetFields();
 }
 
 function fieldName(id) {
@@ -254,6 +306,7 @@ async function loadProfile() {
 
 async function applyProfile() {
   try {
+    enableRequiredWidgetFields(true);
     const text = buildProfile();
     elements.applyProfile.disabled = true;
     setStatus("Storing widget profile on the flight controller…");
@@ -295,6 +348,7 @@ async function loadFields() {
 }
 
 async function applyFields() {
+  enableRequiredWidgetFields(true);
   const selected = selectedFields();
   for (const field of selected) {
     const capability = capabilities.find((candidate) => candidate.name === field.name);
@@ -374,11 +428,15 @@ elements.apply.addEventListener("click", applyFields);
 elements.hideInactive.addEventListener("change", updateSummary);
 elements.loadProfile.addEventListener("click", loadProfile);
 elements.applyProfile.addEventListener("click", applyProfile);
+for (const id of ["ahiVisible", "ahiPitch", "ahiRoll", "sticksVisible", "sticksRoll",
+  "sticksPitch", "sticksYaw", "sticksThrottle"]) {
+  elements[id].addEventListener("change", () => enableRequiredWidgetFields(true));
+}
 
 setConnected(false);
 if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=12").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=13").catch(() => {});
 }
