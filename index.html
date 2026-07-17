@@ -27,11 +27,14 @@
       <div><small>Board</small><strong id="boardIdentity">—</strong></div>
       <div><small>Interface</small><strong id="interfaceIdentity">—</strong></div>
       <div><small>FC DisplayPort</small><strong id="streamRate">—</strong></div>
-      <div class="identity-actions"><button id="load" disabled>Load GHOST fields</button><button id="disconnect" disabled>Disconnect</button></div>
+      <div class="identity-actions"><button id="disconnect" disabled>Disconnect</button></div>
     </section>
 
     <section class="panel widget-panel">
-      <div class="section-heading"><div><p class="eyebrow">VRX PROFILE</p><h2>Widgets</h2></div><span id="profileInfo">Not loaded</span></div>
+      <div class="section-heading">
+        <div><p class="eyebrow">VRX PROFILE</p><div class="heading-title"><h2>Widgets</h2><button id="loadProfile" disabled>Read profile</button></div></div>
+        <span id="profileInfo">Not loaded</span>
+      </div>
       <div class="widget-grid">
         <fieldset><legend><input id="ahiVisible" type="checkbox" checked> AHI</legend>
           <label>Pitch field<input id="ahiPitch" value="PITCH"></label><label>Roll field<input id="ahiRoll" value="ROLL"></label>
@@ -52,12 +55,12 @@
           <label>Maximum FPS<input id="sticksFps" type="number" min="1" max="60" value="30"></label>
         </fieldset>
       </div>
-      <div class="footer-actions"><p>The FC stores this profile and forwards it to the VRX over MSP DisplayPort. No VRX Wi-Fi is required.</p><div class="actions"><button id="loadProfile" disabled>Read profile</button><button id="applyProfile" class="primary" disabled>Save widget profile</button></div></div>
+      <div class="footer-actions"><p>The FC stores this profile and forwards it to the VRX over MSP DisplayPort. No VRX Wi-Fi is required.</p><button id="applyProfile" class="primary" disabled>Save widget profile</button></div>
     </section>
 
     <section class="panel fields-panel">
       <div class="section-heading">
-        <div><p class="eyebrow">STREAM SUBSCRIPTIONS</p><h2>Fields</h2></div>
+        <div><p class="eyebrow">STREAM SUBSCRIPTIONS</p><div class="heading-title"><h2>Fields</h2><button id="load" disabled>Load GHOST fields</button></div></div>
         <div class="heading-tools">
           <label class="compact-toggle"><input id="hideInactive" type="checkbox"> Hide fields not On</label>
           <span id="selection">0 fields enabled</span>

@@ -135,12 +135,13 @@ async function connect() {
       throw new Error(`POC CLI adapter supports BTFL; detected ${variant || "an unknown FC"}`);
     }
     ghostApi = new GhostMspApi(session);
+    let streamStatsSupported = false;
     try {
       const api = await ghostApi.getCapabilities();
       widgetProfileSupported = Boolean(api.flags & 0x08);
+      streamStatsSupported = Boolean(api.flags & 0x10);
       elements.interfaceIdentity.textContent = `GHOST MSPv2 ${api.major}.${api.minor}`;
       setConnected(true);
-      if (api.flags & 0x10) startStreamStats();
       setStatus("Connected using the transactional GHOST MSPv2 API.", "good");
     } catch (_) {
       ghostApi = null;
@@ -149,6 +150,11 @@ async function connect() {
       elements.interfaceIdentity.textContent = "Legacy CLI fallback";
       setStatus("Connected. This firmware will use the legacy CLI adapter.", "good");
     }
+    if (window.confirm("Load the saved GHOST configuration from this flight controller?")) {
+      if (ghostApi && widgetProfileSupported) await loadProfile();
+      await loadFields();
+    }
+    if (ghostApi && streamStatsSupported) startStreamStats();
   } catch (error) {
     setStatus(error.message, "bad");
     if (session?.port) await session.close().catch(() => {});
