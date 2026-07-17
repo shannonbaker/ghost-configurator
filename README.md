@@ -1,7 +1,7 @@
-# GHOST Configurator POC
+# GHOST Configurator
 
-Static, build-free browser proof of concept for configuring the Betaflight
-GHOST field stream and offline VRX widget profile.
+Static, build-free browser application for configuring the Betaflight GHOST
+field stream and offline VRX widget profile.
 
 ## Current scope
 
@@ -16,7 +16,7 @@ GHOST field stream and offline VRX widget profile.
 - Stores renderer-only options as an opaque INI document on the FC, allowing
   future widget keys without matching FC parsing code.
 - Retains clear/rewrite/save/reboot CLI fallback for older POC firmware.
-- Includes a demo mode and an offline service worker.
+- Includes an offline service worker.
 
 The GHOST API integration is isolated in `ghost-api.js`. Firmware without the
 new commands automatically uses the temporary Betaflight CLI adapter.

@@ -1,5 +1,5 @@
 {
-  "name": "GHOST Configurator POC",
+  "name": "GHOST Configurator",
   "short_name": "GHOST Config",
   "start_url": "./",
   "scope": "./",

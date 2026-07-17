@@ -4,20 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101820">
-  <title>GHOST Configurator POC</title>
+  <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <header>
-    <div class="brand"><span class="mark">G</span><div><strong>GHOST</strong><small>Configurator POC</small></div></div>
-    <span class="poc">PROOF OF CONCEPT</span>
-  </header>
   <main>
     <section class="hero">
-      <div><p class="eyebrow">FLIGHT CONTROLLER</p><h1>GHOST Configurator</h1><p>Connect directly to the FC over USB. Configuration stays between this browser and your flight controller.</p></div>
-      <div class="actions"><button id="connect" class="primary">Connect FC</button><button id="demo">Try demo</button></div>
+      <div class="hero-heading"><span class="mark"><span>G</span></span><div><p class="eyebrow">FLIGHT CONTROLLER</p><h1>GHOST Configurator</h1><p>Connect directly to the FC over USB. Configuration stays between this browser and your flight controller.</p></div></div>
+      <div class="actions"><button id="connect" class="primary">Connect FC</button></div>
     </section>
 
     <div id="status" class="status" role="status">Ready to connect.</div>
@@ -68,13 +64,13 @@
       <div class="table-wrap">
         <table>
           <thead><tr><th>On</th><th>Field</th><th>Requested rate</th><th>FC limit</th></tr></thead>
-          <tbody id="fields"><tr class="empty"><td colspan="4">Connect and load an FC, or use demo mode.</td></tr></tbody>
+          <tbody id="fields"><tr class="empty"><td colspan="4">Connect and load a flight controller.</td></tr></tbody>
         </table>
       </div>
       <div class="footer-actions"><p>MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
     </section>
   </main>
-  <footer>GHOST Configurator · Browser POC · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
+  <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

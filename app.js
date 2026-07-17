@@ -9,7 +9,6 @@ const elements = Object.fromEntries(
 let session = null;
 let capabilities = [];
 let configured = new Map();
-let demoMode = false;
 let ghostApi = null;
 let widgetProfileSupported = false;
 let streamStatsTimer = null;
@@ -24,7 +23,6 @@ function setStatus(message, level = "neutral") {
 function setConnected(connected) {
   elements.connect.textContent = connected ? "Disconnect" : "Connect FC";
   elements.connect.disabled = false;
-  elements.demo.disabled = connected;
   elements.load.disabled = !connected;
   elements.apply.disabled = !connected || capabilities.length === 0;
   elements.loadProfile.disabled = !connected || !widgetProfileSupported;
@@ -257,14 +255,9 @@ async function applyProfile() {
     const text = buildProfile();
     elements.applyProfile.disabled = true;
     setStatus("Storing widget profile on the flight controller…");
-    if (demoMode) {
-      elements.profileInfo.textContent = `Demo · ${new TextEncoder().encode(text).length} bytes`;
-      setStatus("Demo widget profile generated.", "good");
-    } else {
-      const result = await ghostApi.uploadProfile(text);
-      elements.profileInfo.textContent = `Revision ${result.revision} · ${result.length} bytes`;
-      setStatus("Widget profile persisted. The FC will deliver it to the VRX over DisplayPort.", "good");
-    }
+    const result = await ghostApi.uploadProfile(text);
+    elements.profileInfo.textContent = `Revision ${result.revision} · ${result.length} bytes`;
+    setStatus("Widget profile persisted. The FC will deliver it to the VRX over DisplayPort.", "good");
   } catch (error) { setStatus(error.message, "bad"); }
   finally { elements.applyProfile.disabled = !widgetProfileSupported; }
 }
@@ -312,73 +305,42 @@ async function applyFields() {
   try {
     elements.apply.disabled = true;
     setStatus("Writing configuration…");
-    if (!demoMode) {
-      if (ghostApi) {
-        const byName = new Map(capabilities.map((field) => [field.name, field]));
-        const records = selected.map((field, index) => ({
-          slot: index, id: byName.get(field.name).id, rateHz: field.rateHz,
-        }));
-        const readback = await ghostApi.replaceSubscriptions(records);
-        const matches = readback.records.length === records.length && records.every((record, index) => {
-          const actual = readback.records[index];
-          return actual.slot === record.slot && actual.fieldId === record.id && actual.rateHz === record.rateHz;
-        });
-        if (!matches) throw new Error("FC read-back does not match the requested configuration");
-        configured = new Map(selected.map((field) => [field.name, field]));
-        setStatus("Configuration committed, persisted, and verified without rebooting.", "good");
-        elements.apply.disabled = false;
-        return;
-      } else {
-        await session.runCli("ghost_field clear all");
-        for (const field of selected) {
-          await session.runCli(`ghost_field set ${field.slot} ${field.name} ${field.rateHz}`);
-        }
-        setStatus("Saving and rebooting the flight controller…");
-        await session.runCli("save", 1500).catch(() => {}); // save reboots before another prompt
-        await session.close().catch(() => {});
-        session = null;
-        setConnected(false);
-      }
+    if (ghostApi) {
+      const byName = new Map(capabilities.map((field) => [field.name, field]));
+      const records = selected.map((field, index) => ({
+        slot: index, id: byName.get(field.name).id, rateHz: field.rateHz,
+      }));
+      const readback = await ghostApi.replaceSubscriptions(records);
+      const matches = readback.records.length === records.length && records.every((record, index) => {
+        const actual = readback.records[index];
+        return actual.slot === record.slot && actual.fieldId === record.id && actual.rateHz === record.rateHz;
+      });
+      if (!matches) throw new Error("FC read-back does not match the requested configuration");
+      configured = new Map(selected.map((field) => [field.name, field]));
+      setStatus("Configuration committed, persisted, and verified without rebooting.", "good");
+      elements.apply.disabled = false;
+      return;
     }
+    await session.runCli("ghost_field clear all");
+    for (const field of selected) {
+      await session.runCli(`ghost_field set ${field.slot} ${field.name} ${field.rateHz}`);
+    }
+    setStatus("Saving and rebooting the flight controller…");
+    await session.runCli("save", 1500).catch(() => {}); // save reboots before another prompt
+    await session.close().catch(() => {});
+    session = null;
+    setConnected(false);
     configured = new Map(selected.map((field) => [field.name, field]));
-    setStatus(demoMode ? "Demo configuration applied." : "Configuration saved; flight controller is rebooting.", "good");
+    setStatus("Configuration saved; flight controller is rebooting.", "good");
   } catch (error) {
     setStatus(error.message, "bad");
     elements.apply.disabled = false;
   }
 }
 
-function startDemo() {
-  demoMode = true;
-  capabilities = [
-    { id: 1, name: "PITCH", maxHz: 50 }, { id: 2, name: "ROLL", maxHz: 50 },
-    { id: 3, name: "HEADING", maxHz: 50 }, { id: 4, name: "LATITUDE", maxHz: 50 },
-    { id: 5, name: "LONGITUDE", maxHz: 50 }, { id: 8, name: "BATTERY_VOLTAGE", maxHz: 50 },
-    { id: 32, name: "RC1", maxHz: 50 }, { id: 33, name: "RC2", maxHz: 50 },
-    { id: 34, name: "RC3", maxHz: 50 }, { id: 35, name: "RC4", maxHz: 50 },
-  ];
-  configured = new Map([
-    ["PITCH", { name: "PITCH", rateHz: 20 }],
-    ["ROLL", { name: "ROLL", rateHz: 20 }],
-    ["BATTERY_VOLTAGE", { name: "BATTERY_VOLTAGE", rateHz: 1 }],
-  ]);
-  elements.fcIdentity.textContent = "BTFL 4.x (demo)";
-  elements.boardIdentity.textContent = "MATEKF405SE";
-  elements.interfaceIdentity.textContent = "GHOST MSPv2 1.0 (demo)";
-  elements.streamRate.textContent = "Demo";
-  widgetProfileSupported = true;
-  renderFields();
-  setConnected(true);
-  elements.load.disabled = true;
-  elements.apply.disabled = false;
-  setStatus("Demo mode: no serial data will be sent.", "good");
-}
-
 async function disconnect() {
   stopStreamStats();
-  if (demoMode) {
-    demoMode = false;
-  } else if (session) {
+  if (session) {
     setStatus(ghostApi ? "Disconnecting…" : "Exiting CLI and rebooting…");
     await session.close({ reboot: true }).catch(() => {});
     session = null;
@@ -399,13 +361,12 @@ async function disconnect() {
 elements.connect.addEventListener("click", async () => {
   elements.connect.disabled = true;
   try {
-    if (session || demoMode) await disconnect();
+    if (session) await disconnect();
     else await connect();
   } finally {
     elements.connect.disabled = false;
   }
 });
-elements.demo.addEventListener("click", startDemo);
 elements.load.addEventListener("click", loadFields);
 elements.apply.addEventListener("click", applyFields);
 elements.hideInactive.addEventListener("change", updateSummary);
