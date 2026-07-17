@@ -22,11 +22,11 @@ function setStatus(message, level = "neutral") {
 }
 
 function setConnected(connected) {
-  elements.connect.disabled = connected;
+  elements.connect.textContent = connected ? "Disconnect" : "Connect FC";
+  elements.connect.disabled = false;
   elements.demo.disabled = connected;
   elements.load.disabled = !connected;
   elements.apply.disabled = !connected || capabilities.length === 0;
-  elements.disconnect.disabled = !connected;
   elements.loadProfile.disabled = !connected || !widgetProfileSupported;
   elements.applyProfile.disabled = !connected || !widgetProfileSupported;
 }
@@ -396,11 +396,18 @@ async function disconnect() {
   setStatus("Disconnected.");
 }
 
-elements.connect.addEventListener("click", connect);
+elements.connect.addEventListener("click", async () => {
+  elements.connect.disabled = true;
+  try {
+    if (session || demoMode) await disconnect();
+    else await connect();
+  } finally {
+    elements.connect.disabled = false;
+  }
+});
 elements.demo.addEventListener("click", startDemo);
 elements.load.addEventListener("click", loadFields);
 elements.apply.addEventListener("click", applyFields);
-elements.disconnect.addEventListener("click", disconnect);
 elements.hideInactive.addEventListener("change", updateSummary);
 elements.loadProfile.addEventListener("click", loadProfile);
 elements.applyProfile.addEventListener("click", applyProfile);
