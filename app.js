@@ -243,7 +243,9 @@ function populateProfile(text) {
     elements.ahiVisible.checked = truthy(ahi.visible);
     setValue("ahiPitch", ahi.pitch_field); setValue("ahiRoll", ahi.roll_field);
     setValue("ahiX", ahi.center_x); setValue("ahiY", ahi.center_y);
-    setValue("ahiWidth", ahi.width); setValue("ahiSmoothing", ahi.smoothing);
+    setValue("ahiWidth", ahi.width);
+    setValue("ahiPitchScale", ahi.pitch_scale ?? "1.0");
+    setValue("ahiSmoothing", ahi.smoothing);
     setValue("ahiFps", ahi.max_fps);
     elements.ahiReversePitch.checked = truthy(ahi.reverse_pitch);
     elements.ahiReverseRoll.checked = truthy(ahi.reverse_roll);
@@ -280,6 +282,7 @@ function buildProfile() {
     `pitch_field=${fieldName("ahiPitch")}`, `roll_field=${fieldName("ahiRoll")}`,
     `center_x=${numberValue("ahiX", 0, 10000)}`, `center_y=${numberValue("ahiY", 0, 10000)}`,
     `width=${numberValue("ahiWidth", 1, 10000)}`, "height=5000",
+    `pitch_scale=${numberValue("ahiPitchScale", 0.1, 10)}`,
     `visible=${elements.ahiVisible.checked}`, `reverse_pitch=${elements.ahiReversePitch.checked}`,
     `reverse_roll=${elements.ahiReverseRoll.checked}`,
     `smoothing=${numberValue("ahiSmoothing", 0, 10)}`,
