@@ -21,6 +21,7 @@ let streamStatsTimer = null;
 let streamStatsPrevious = null;
 let streamStatsGeneration = 0;
 let profileSaveQueue = Promise.resolve();
+let widgetReloadToken = 0;
 let selectedLayoutWidget = null;
 let layoutDrag = null;
 let layoutResize = null;
@@ -388,6 +389,7 @@ function setConnected(connected) {
   if (elements.load) elements.load.disabled = !connected;
   if (elements.apply) elements.apply.disabled = !connected || capabilities.length === 0;
   if (elements.loadProfile) elements.loadProfile.disabled = !connected || !widgetProfileSupported;
+  if (elements.reloadWidgets) elements.reloadWidgets.disabled = !connected || !widgetProfileSupported;
   if (elements.applyProfile) elements.applyProfile.disabled = !connected || !widgetProfileSupported;
 }
 
@@ -805,6 +807,9 @@ function populateManifestProfiles(sections) {
 function populateProfile(text) {
   const sections = parseIni(text);
   lastProfileSections = sections;
+  const parsedReloadToken = Number(sections.get("display")?.r ?? 0);
+  widgetReloadToken = Number.isInteger(parsedReloadToken) &&
+    parsedReloadToken >= 0 && parsedReloadToken <= 65535 ? parsedReloadToken : 0;
   const ahi = sections.get("ahi.0");
   if (ahi) {
     elements.ahiVisible.checked = truthy(ahi.visible);
@@ -903,7 +908,7 @@ function buildProfile() {
   }
   const lines = [
     "; GHOST widget profile v1", "[display]",
-    "reference_width=1920", "reference_height=1080", "", "[ahi.0]",
+    "reference_width=1920", "reference_height=1080", `r=${widgetReloadToken}`, "", "[ahi.0]",
     `pitch_field=${fieldName("ahiPitch")}`, `roll_field=${fieldName("ahiRoll")}`,
     `center_x=${numberValue("ahiX", 0, 10000)}`, `center_y=${numberValue("ahiY", 0, 10000)}`,
     `width=${numberValue("ahiWidth", 1, 10000)}`,
@@ -971,6 +976,7 @@ async function applyProfile() {
   } catch (error) { setStatus(error.message, "bad"); }
   finally {
     elements.applyProfile.disabled = !widgetProfileSupported;
+    elements.reloadWidgets.disabled = !widgetProfileSupported;
     elements.apply.disabled = capabilities.length === 0;
   }
 }
@@ -978,6 +984,13 @@ async function applyProfile() {
 function queueProfileSave() {
   profileSaveQueue = profileSaveQueue.catch(() => {}).then(() => applyProfile());
   return profileSaveQueue;
+}
+
+function reloadWidgets() {
+  widgetReloadToken = (widgetReloadToken + 1) & 0xffff;
+  elements.reloadWidgets.disabled = true;
+  setStatus("Saving widget reload request to the flight controller…");
+  return queueProfileSave();
 }
 
 async function loadFields() {
@@ -1102,6 +1115,7 @@ elements.load.addEventListener("click", loadFields);
 elements.apply.addEventListener("click", applyFields);
 elements.hideInactive.addEventListener("change", updateSummary);
 elements.loadProfile.addEventListener("click", loadProfile);
+elements.reloadWidgets.addEventListener("click", reloadWidgets);
 elements.applyProfile.addEventListener("click", queueProfileSave);
 for (const id of ["ahiPitch", "ahiRoll", "sticksRoll", "sticksPitch", "sticksYaw",
   "sticksThrottle"]) {
