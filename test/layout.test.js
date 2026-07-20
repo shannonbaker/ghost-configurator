@@ -2,10 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
-  ahiCenterFromPosition, ahiRect, ahiSizeFromPixels, clampPosition,
+  ahiCenterFromPosition, ahiRect, ahiSizeFromPixels, aspectConstrainedSize,
+  clampPosition,
   logicalToPhysical,
   outputSize, statusRect, sticksRect,
 } from "../layout.js";
+
+test("text widget resize preserves a non-square aspect ratio", () => {
+  const size = aspectConstrainedSize(580, 350, 650 / 150,
+    320, 100, 1200, 500);
+  assert.ok(Math.abs(size.width / size.height - 650 / 150) < 0.000001);
+  assert.ok(size.width >= 320 && size.height >= 100);
+});
 
 test("maps the 1080p logical workspace to 720p", () => {
   const output = outputSize("1280x720");

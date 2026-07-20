@@ -55,7 +55,7 @@ test("link-status package exposes resizable diagnostic geometry", async () => {
   assert.equal(widget.id, "link_status");
   assert.equal(widget.geometry_width, "width");
   assert.equal(widget.geometry_height, "height");
-  assert.equal(widget.geometry_lock_aspect, "false");
+  assert.equal(widget.geometry_lock_aspect, "true");
   assert.equal(sections.get("option.refresh_hz").default, "4");
   assert.equal(sections.get("option.info_file").hidden, "true");
 });

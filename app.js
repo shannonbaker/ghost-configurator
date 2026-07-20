@@ -4,7 +4,7 @@ import { GhostMspApi } from "./ghost-api.js";
 import { compactManifestOptions } from "./profile.js";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
-  ahiSizeFromPixels,
+  ahiSizeFromPixels, aspectConstrainedSize,
   clampPosition, logicalToPhysical, outputSize, statusRect, sticksRect,
 } from "./layout.js";
 
@@ -270,6 +270,8 @@ function resizableDefinition(widget) {
   const heightOption = definition.options.get(definition.widget.geometry_height);
   return {
     lockAspect: definition.widget.geometry_lock_aspect === "true",
+    aspectRatio: Number(widthOption?.default ?? 1) /
+      Number(heightOption?.default ?? 1),
     minimumWidth: Number(widthOption?.min ?? 20),
     minimumHeight: Number(heightOption?.min ?? 20),
     writeSize(width, height, anchorX, anchorY) {
@@ -327,9 +329,12 @@ function moveLayoutResize(event) {
   height = Math.min(Math.max(height, layoutResize.definition.minimumHeight),
     maximumHeight);
   if (layoutResize.definition.lockAspect) {
-    const size = Math.min(Math.max(width, height), maximumWidth, maximumHeight);
-    width = size;
-    height = size;
+    ({ width, height } = aspectConstrainedSize(
+      width, height, layoutResize.definition.aspectRatio,
+      layoutResize.definition.minimumWidth,
+      layoutResize.definition.minimumHeight,
+      maximumWidth, maximumHeight,
+    ));
   }
   const anchorX = layoutResize.anchored
     ? layoutResize.centerX - width / 2 : layoutResize.x;

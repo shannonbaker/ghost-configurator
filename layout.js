@@ -1,6 +1,20 @@
 export const LOGICAL_WIDTH = 1920;
 export const LOGICAL_HEIGHT = 1080;
 
+export function aspectConstrainedSize(width, height, ratio,
+  minimumWidth, minimumHeight, maximumWidth, maximumHeight) {
+  const projectedHeight = (width * ratio + height) / (ratio * ratio + 1);
+  const minimumScale = Math.max(minimumWidth / ratio, minimumHeight);
+  const maximumScale = Math.min(maximumWidth / ratio, maximumHeight);
+  const constrainedHeight = Math.min(
+    Math.max(projectedHeight, minimumScale), maximumScale,
+  );
+  return {
+    width: constrainedHeight * ratio,
+    height: constrainedHeight,
+  };
+}
+
 const clamp = (value, minimum, maximum) =>
   Math.min(Math.max(value, minimum), maximum);
 
