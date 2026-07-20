@@ -23,6 +23,7 @@ let profileSaveQueue = Promise.resolve();
 let selectedLayoutWidget = null;
 let layoutDrag = null;
 let layoutResize = null;
+const anchoredLayoutWidgets = new Set();
 const manifestWidgets = new Map();
 let lastProfileSections = null;
 
@@ -160,6 +161,7 @@ function refreshLayout() {
       ? manifestDefinition.visibleControl.checked : visibility[widget];
     preview.classList.toggle("disabled", !visible);
     preview.classList.toggle("selected", selectedLayoutWidget === widget);
+    preview.classList.toggle("anchored", anchoredLayoutWidgets.has(widget));
   }
   const statusRows = [];
   if (elements.statusVtxTemperature.checked || elements.statusVtxVoltage.checked) {
@@ -180,6 +182,22 @@ function selectLayoutWidget(widget) {
   refreshLayout();
 }
 
+function toggleLayoutAnchor(event) {
+  event.stopPropagation();
+  event.preventDefault();
+  const widget = event.currentTarget.dataset.widget;
+  if (!widget) return;
+  if (anchoredLayoutWidgets.has(widget)) anchoredLayoutWidgets.delete(widget);
+  else anchoredLayoutWidgets.add(widget);
+  event.currentTarget.setAttribute(
+    "aria-pressed", String(anchoredLayoutWidgets.has(widget)),
+  );
+  event.currentTarget.title = anchoredLayoutWidgets.has(widget)
+    ? "Position anchored; resizing uses the centre"
+    : "Anchor position and resize around the centre";
+  selectLayoutWidget(widget);
+}
+
 function pointerLogicalPosition(event) {
   const canvas = elements.layoutCanvas.getBoundingClientRect();
   return {
@@ -190,7 +208,8 @@ function pointerLogicalPosition(event) {
 
 function beginLayoutDrag(event) {
   const widget = event.currentTarget.dataset.widget;
-  if (!widget || event.currentTarget.classList.contains("disabled")) return;
+  if (!widget || event.currentTarget.classList.contains("disabled") ||
+      anchoredLayoutWidgets.has(widget)) return;
   selectLayoutWidget(widget);
   const pointer = pointerLogicalPosition(event);
   const rect = widgetLogicalRect(widget);
@@ -219,6 +238,7 @@ function endLayoutDrag(event) {
 
 const resizableWidgets = {
   ahi: {
+    lockAspect: false,
     minimumWidth: 120,
     minimumHeight: 120,
     writeSize(width, height, anchorX, anchorY) {
@@ -247,18 +267,18 @@ function resizableDefinition(widget) {
   const widthOption = definition.options.get(definition.widget.geometry_width);
   const heightOption = definition.options.get(definition.widget.geometry_height);
   return {
+    lockAspect: definition.widget.geometry_lock_aspect === "true",
     minimumWidth: Number(widthOption?.min ?? 20),
     minimumHeight: Number(heightOption?.min ?? 20),
-    writeSize(width, height) {
-      if (definition.widget.geometry_lock_aspect === "true") {
-        const size = Math.max(width, height);
-        width = size;
-        height = size;
-      }
+    writeSize(width, height, anchorX, anchorY) {
       definition.controls.get(definition.widget.geometry_width).value =
         Math.round(width);
       definition.controls.get(definition.widget.geometry_height).value =
         Math.round(height);
+      definition.controls.get(definition.widget.geometry_x).value =
+        Math.round(anchorX);
+      definition.controls.get(definition.widget.geometry_y).value =
+        Math.round(anchorY);
     },
   };
 }
@@ -272,7 +292,11 @@ function beginLayoutResize(event) {
   selectLayoutWidget(widget);
   const rect = widgetLogicalRect(widget);
   layoutResize = {
-    widget, definition, x: rect.x, y: rect.y, changed: false,
+    widget, definition, x: rect.x, y: rect.y,
+    centerX: rect.x + rect.width / 2,
+    centerY: rect.y + rect.height / 2,
+    anchored: anchoredLayoutWidgets.has(widget),
+    changed: false,
   };
   event.currentTarget.setPointerCapture(event.pointerId);
 }
@@ -280,22 +304,37 @@ function beginLayoutResize(event) {
 function moveLayoutResize(event) {
   if (!layoutResize) return;
   const pointer = pointerLogicalPosition(event);
-  let width = pointer.x - layoutResize.x;
-  let height = pointer.y - layoutResize.y;
+  let width = layoutResize.anchored
+    ? Math.abs(pointer.x - layoutResize.centerX) * 2
+    : pointer.x - layoutResize.x;
+  let height = layoutResize.anchored
+    ? Math.abs(pointer.y - layoutResize.centerY) * 2
+    : pointer.y - layoutResize.y;
   if (elements.layoutSnap.checked) {
     width = Math.round(width / 10) * 10;
     height = Math.round(height / 10) * 10;
   }
-  width = Math.min(
-    Math.max(width, layoutResize.definition.minimumWidth),
-    LOGICAL_WIDTH - layoutResize.x,
-  );
-  height = Math.min(
-    Math.max(height, layoutResize.definition.minimumHeight),
-    LOGICAL_HEIGHT - layoutResize.y,
-  );
+  const maximumWidth = layoutResize.anchored
+    ? 2 * Math.min(layoutResize.centerX, LOGICAL_WIDTH - layoutResize.centerX)
+    : LOGICAL_WIDTH - layoutResize.x;
+  const maximumHeight = layoutResize.anchored
+    ? 2 * Math.min(layoutResize.centerY, LOGICAL_HEIGHT - layoutResize.centerY)
+    : LOGICAL_HEIGHT - layoutResize.y;
+  width = Math.min(Math.max(width, layoutResize.definition.minimumWidth),
+    maximumWidth);
+  height = Math.min(Math.max(height, layoutResize.definition.minimumHeight),
+    maximumHeight);
+  if (layoutResize.definition.lockAspect) {
+    const size = Math.min(Math.max(width, height), maximumWidth, maximumHeight);
+    width = size;
+    height = size;
+  }
+  const anchorX = layoutResize.anchored
+    ? layoutResize.centerX - width / 2 : layoutResize.x;
+  const anchorY = layoutResize.anchored
+    ? layoutResize.centerY - height / 2 : layoutResize.y;
   layoutResize.definition.writeSize(
-    width, height, layoutResize.x, layoutResize.y,
+    width, height, anchorX, anchorY,
   );
   layoutResize.changed = true;
   if (elements.profileInfo.textContent !== "Not loaded") {
@@ -318,7 +357,9 @@ function moveSelectedWithKeyboard(event) {
     ArrowLeft: [-1, 0], ArrowRight: [1, 0],
     ArrowUp: [0, -1], ArrowDown: [0, 1],
   };
-  if (!directions[event.key] || event.currentTarget.classList.contains("disabled")) return;
+  if (!directions[event.key] ||
+      event.currentTarget.classList.contains("disabled") ||
+      anchoredLayoutWidgets.has(widget)) return;
   selectLayoutWidget(widget);
   const rect = widgetLogicalRect(widget);
   const step = event.shiftKey ? 10 : 1;
@@ -630,6 +671,16 @@ function attachManifestPreview(definition) {
     ? "G" : definition.widget.title;
   preview.append(label);
   if (definition.widget.geometry_width && definition.widget.geometry_height) {
+    const anchor = document.createElement("button");
+    anchor.type = "button";
+    anchor.className = "layout-anchor-toggle";
+    anchor.dataset.widget = widgetKey;
+    anchor.setAttribute("aria-label", `Anchor ${definition.widget.title} position`);
+    anchor.setAttribute("aria-pressed", "false");
+    anchor.title = "Anchor position and resize around the centre";
+    anchor.addEventListener("pointerdown", (event) => event.stopPropagation());
+    anchor.addEventListener("click", toggleLayoutAnchor);
+    preview.append(anchor);
     const handle = document.createElement("button");
     handle.type = "button";
     handle.className = "layout-resize-handle";
@@ -1062,6 +1113,13 @@ for (const handle of elements.layoutCanvas.querySelectorAll(
 )) {
   handle.addEventListener("pointerdown", beginLayoutResize);
 }
+for (const anchor of elements.layoutCanvas.querySelectorAll(
+  ".layout-anchor-toggle[data-widget]",
+)) {
+  anchor.title = "Anchor position and resize around the centre";
+  anchor.addEventListener("pointerdown", (event) => event.stopPropagation());
+  anchor.addEventListener("click", toggleLayoutAnchor);
+}
 window.addEventListener("pointermove", moveLayoutResize);
 window.addEventListener("pointerup", endLayoutResize);
 window.addEventListener("pointercancel", endLayoutResize);
@@ -1083,5 +1141,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=24").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=25").catch(() => {});
 }

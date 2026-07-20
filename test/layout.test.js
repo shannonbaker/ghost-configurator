@@ -69,3 +69,16 @@ test("completed drag and resize operations automatically persist layout", async 
   );
   assert.match(app, /setStatus\("Applying widget layout to the flight controller…"\)/);
 });
+
+test("resizable widgets support centre-anchored sizing", async () => {
+  const [html, app, styles] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../app.js", import.meta.url), "utf8"),
+    readFile(new URL("../styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /class="layout-anchor-toggle" data-widget="ahi"/);
+  assert.match(app, /const anchoredLayoutWidgets = new Set\(\)/);
+  assert.match(app, /Math\.abs\(pointer\.x - layoutResize\.centerX\) \* 2/);
+  assert.match(app, /layoutResize\.centerX - width \/ 2/);
+  assert.match(styles, /\.layout-widget\.anchored \{ cursor:not-allowed; \}/);
+});
