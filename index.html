@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=16">
+  <link rel="stylesheet" href="./styles.css?v=17">
 </head>
 <body>
   <main>
@@ -50,6 +50,18 @@
           <label>Size (%)<input id="sticksSize" type="number" min="20" max="300" value="100"></label>
           <label>Maximum FPS<input id="sticksFps" type="number" min="1" max="60" value="30"></label>
         </fieldset>
+        <fieldset><legend><input id="statusVisible" type="checkbox"> System status</legend>
+          <label class="check"><input id="statusVtxTemperature" type="checkbox" checked> VTX temperature</label>
+          <label class="check"><input id="statusGogglesTemperature" type="checkbox" checked> Goggles temperature</label>
+          <label class="check"><input id="statusVtxVoltage" type="checkbox" checked> VTX voltage</label>
+          <label class="check"><input id="statusGogglesVoltage" type="checkbox" checked> Goggles voltage</label>
+          <label>X position<input id="statusX" type="number" min="0" max="1919" value="16"></label>
+          <label>Y position<input id="statusY" type="number" min="0" max="1079" value="12"></label>
+          <label>Size (%)<input id="statusSize" type="number" min="50" max="200" value="100"></label>
+          <label>Maximum FPS<input id="statusFps" type="number" min="1" max="30" value="4"></label>
+          <label>Background opacity<input id="statusOpacity" type="number" min="0" max="255" value="150"></label>
+          <label>Stale timeout (ms)<input id="statusStale" type="number" min="0" max="60000" value="3000"></label>
+        </fieldset>
       </div>
       <div class="footer-actions"><p>Changing a widget’s enabled state saves it and its required field subscriptions immediately.</p><button id="applyProfile" class="primary" disabled>Save widget &amp; fields</button></div>
     </section>
@@ -72,6 +84,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=16"></script>
+  <script type="module" src="./app.js?v=17"></script>
 </body>
 </html>

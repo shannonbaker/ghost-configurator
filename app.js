@@ -259,6 +259,18 @@ function populateProfile(text) {
     setValue("sticksY", sticks.position_y); setValue("sticksSize", sticks.size_percent);
     setValue("sticksFps", sticks.max_fps);
   }
+  const status = sections.get("status.0");
+  if (status) {
+    elements.statusVisible.checked = truthy(status.visible);
+    elements.statusVtxTemperature.checked = truthy(status.show_vtx_temperature);
+    elements.statusGogglesTemperature.checked = truthy(status.show_goggles_temperature);
+    elements.statusVtxVoltage.checked = truthy(status.show_vtx_voltage);
+    elements.statusGogglesVoltage.checked = truthy(status.show_goggles_voltage);
+    setValue("statusX", status.position_x); setValue("statusY", status.position_y);
+    setValue("statusSize", status.size_percent); setValue("statusFps", status.max_fps);
+    setValue("statusOpacity", status.background_opacity);
+    setValue("statusStale", status.stale_timeout_ms);
+  }
   enableRequiredWidgetFields();
 }
 
@@ -277,6 +289,12 @@ function numberValue(id, minimum, maximum) {
 }
 
 function buildProfile() {
+  const statusMetricIds = ["statusVtxTemperature", "statusGogglesTemperature",
+    "statusVtxVoltage", "statusGogglesVoltage"];
+  if (elements.statusVisible.checked &&
+      !statusMetricIds.some((id) => elements[id].checked)) {
+    throw new Error("Enable at least one system-status metric.");
+  }
   const lines = [
     "; GHOST widget profile v1", "[ahi.0]",
     `pitch_field=${fieldName("ahiPitch")}`, `roll_field=${fieldName("ahiRoll")}`,
@@ -293,7 +311,18 @@ function buildProfile() {
     "reverse_roll=false", "reverse_pitch=false", "reverse_yaw=false", "reverse_throttle=false",
     `position_x=${numberValue("sticksX", -4096, 4096)}`, `position_y=${numberValue("sticksY", -4096, 4096)}`,
     `size_percent=${numberValue("sticksSize", 20, 300)}`,
-    `max_fps=${numberValue("sticksFps", 1, 60)}`, "stale_timeout_ms=500", "",
+    `max_fps=${numberValue("sticksFps", 1, 60)}`, "stale_timeout_ms=500", "", "[status.0]",
+    `visible=${elements.statusVisible.checked}`,
+    `show_vtx_temperature=${elements.statusVtxTemperature.checked}`,
+    `show_goggles_temperature=${elements.statusGogglesTemperature.checked}`,
+    `show_vtx_voltage=${elements.statusVtxVoltage.checked}`,
+    `show_goggles_voltage=${elements.statusGogglesVoltage.checked}`,
+    `position_x=${numberValue("statusX", 0, 1919)}`,
+    `position_y=${numberValue("statusY", 0, 1079)}`,
+    `size_percent=${numberValue("statusSize", 50, 200)}`,
+    `max_fps=${numberValue("statusFps", 1, 30)}`,
+    `background_opacity=${numberValue("statusOpacity", 0, 255)}`,
+    `stale_timeout_ms=${numberValue("statusStale", 0, 60000)}`, "",
   ];
   return lines.join("\n");
 }
@@ -460,7 +489,7 @@ for (const id of ["ahiPitch", "ahiRoll", "sticksRoll", "sticksPitch", "sticksYaw
   "sticksThrottle"]) {
   elements[id].addEventListener("change", () => enableRequiredWidgetFields(true));
 }
-for (const id of ["ahiVisible", "sticksVisible"]) {
+for (const id of ["ahiVisible", "sticksVisible", "statusVisible"]) {
   elements[id].addEventListener("change", () => {
     enableRequiredWidgetFields(true);
     if (!session || !ghostApi || !widgetProfileSupported) {
@@ -476,5 +505,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=15").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=17").catch(() => {});
 }
