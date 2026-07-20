@@ -42,6 +42,7 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .layout-widget { position:absolute; z-index:1; display:grid; place-items:center; overflow:hidden; border:1px solid #56e39fb8; border-radius:5px; background:#10251bcc; color:#eaf9f1; font-size:10px; font-weight:750; cursor:grab; box-shadow:0 2px 8px #0007; }
 .layout-widget:active { cursor:grabbing; }
 .layout-widget:focus,.layout-widget.selected { outline:2px solid #fff; outline-offset:1px; }
+.layout-widget.selected { z-index:20; }
 .layout-widget .layout-resize-handle { position:absolute; right:2px; bottom:2px; z-index:3; width:12px; height:12px; min-width:0; padding:0; border:1px solid #06110c; border-radius:2px; background:var(--accent); cursor:nwse-resize; }
 .layout-widget .layout-resize-handle:hover { background:#8ff0c0; }
 .layout-widget.disabled { opacity:.28; border-style:dashed; pointer-events:none; }
