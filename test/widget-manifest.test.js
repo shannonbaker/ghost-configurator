@@ -30,6 +30,7 @@ test("catalog exposes a valid rotating-logo package", async () => {
   assert.deepEqual(catalog.manifests, [
     "./manifests/rotating_logo.widget.ini",
     "./manifests/link_status.widget.ini",
+    "./manifests/vrx_status_bar.widget.ini",
   ]);
 
   const sections = parseIni(await readFile(
@@ -58,6 +59,18 @@ test("link-status package exposes resizable diagnostic geometry", async () => {
   assert.equal(widget.geometry_lock_aspect, "true");
   assert.equal(sections.get("option.refresh_hz").default, "4");
   assert.equal(sections.get("option.info_file").hidden, "true");
+});
+
+test("VRX status bar package is horizontal and aspect locked", async () => {
+  const sections = parseIni(await readFile(
+    new URL("../widgets/manifests/vrx_status_bar.widget.ini", import.meta.url),
+    "utf8",
+  ));
+  const widget = sections.get("widget");
+  assert.equal(widget.id, "vrx_status_bar");
+  assert.equal(widget.geometry_lock_aspect, "true");
+  assert.equal(sections.get("option.width").default, "1000");
+  assert.equal(sections.get("option.height").default, "70");
 });
 
 test("widget binary is constrained to the managed Goggles X directory", async () => {

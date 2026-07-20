@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "manifests": [
     "./manifests/rotating_logo.widget.ini",
-    "./manifests/link_status.widget.ini"
+    "./manifests/link_status.widget.ini",
+    "./manifests/vrx_status_bar.widget.ini"
   ]
 }
