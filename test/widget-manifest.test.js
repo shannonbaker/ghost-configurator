@@ -32,6 +32,7 @@ test("catalog exposes a valid rotating-logo package", async () => {
     "./manifests/link_status.widget.ini",
     "./manifests/vrx_status_bar.widget.ini",
     "./manifests/head_tracking.widget.ini",
+    "./manifests/antenna_tracker.widget.ini",
   ]);
 
   const sections = parseIni(await readFile(
@@ -88,6 +89,22 @@ test("head-tracking package exposes three-axis mapping and geometry", async () =
   assert.equal(sections.get("option.pan_axis").default, "2");
   assert.equal(sections.get("option.tilt_axis").default, "1");
   assert.equal(sections.get("option.ring_file").hidden, "true");
+});
+
+test("antenna-tracker package declares GPS inputs and test vector", async () => {
+  const sections = parseIni(await readFile(
+    new URL("../widgets/manifests/antenna_tracker.widget.ini", import.meta.url),
+    "utf8",
+  ));
+  const widget = sections.get("widget");
+  assert.equal(widget.id, "antenna_tracker");
+  assert.equal(widget.field_shm, "true");
+  assert.equal(sections.get("option.latitude_field").default, "4");
+  assert.equal(sections.get("option.longitude_field").default, "5");
+  assert.equal(sections.get("option.altitude_field").default, "6");
+  assert.equal(sections.get("option.test_distance_m").default, "200");
+  assert.equal(sections.get("option.test_altitude_m").default, "75");
+  assert.equal(sections.get("option.test_mode").default, "false");
 });
 
 test("widget binary is constrained to the managed Goggles X directory", async () => {
