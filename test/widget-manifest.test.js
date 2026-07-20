@@ -29,6 +29,7 @@ test("catalog exposes a valid rotating-logo package", async () => {
   assert.equal(catalog.schemaVersion, 1);
   assert.deepEqual(catalog.manifests, [
     "./manifests/rotating_logo.widget.ini",
+    "./manifests/link_status.widget.ini",
   ]);
 
   const sections = parseIni(await readFile(
@@ -43,6 +44,20 @@ test("catalog exposes a valid rotating-logo package", async () => {
   assert.equal(widget.geometry_height, "size");
   assert.equal(sections.get("option.visible").role, "visible");
   assert.equal(sections.get("option.size").type, "logical_size");
+});
+
+test("link-status package exposes resizable diagnostic geometry", async () => {
+  const sections = parseIni(await readFile(
+    new URL("../widgets/manifests/link_status.widget.ini", import.meta.url),
+    "utf8",
+  ));
+  const widget = sections.get("widget");
+  assert.equal(widget.id, "link_status");
+  assert.equal(widget.geometry_width, "width");
+  assert.equal(widget.geometry_height, "height");
+  assert.equal(widget.geometry_lock_aspect, "false");
+  assert.equal(sections.get("option.refresh_hz").default, "4");
+  assert.equal(sections.get("option.info_file").hidden, "true");
 });
 
 test("widget binary is constrained to the managed Goggles X directory", async () => {
