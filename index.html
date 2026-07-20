@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=17">
+  <link rel="stylesheet" href="./styles.css?v=18">
 </head>
 <body>
   <main>
@@ -52,9 +52,9 @@
         </fieldset>
         <fieldset><legend><input id="statusVisible" type="checkbox"> System status</legend>
           <label class="check"><input id="statusVtxTemperature" type="checkbox" checked> VTX temperature</label>
-          <label class="check"><input id="statusGogglesTemperature" type="checkbox" checked> Goggles temperature</label>
+          <label class="check"><input id="statusGogglesTemperature" type="checkbox" checked> VRX temperature</label>
           <label class="check"><input id="statusVtxVoltage" type="checkbox" checked> VTX voltage</label>
-          <label class="check"><input id="statusGogglesVoltage" type="checkbox" checked> Goggles voltage</label>
+          <label class="check"><input id="statusGogglesVoltage" type="checkbox" checked> VRX voltage</label>
           <label>X position<input id="statusX" type="number" min="0" max="1919" value="16"></label>
           <label>Y position<input id="statusY" type="number" min="0" max="1079" value="12"></label>
           <label>Size (%)<input id="statusSize" type="number" min="50" max="200" value="100"></label>
@@ -84,6 +84,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=17"></script>
+  <script type="module" src="./app.js?v=18"></script>
 </body>
 </html>

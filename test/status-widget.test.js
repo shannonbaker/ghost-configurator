@@ -26,4 +26,7 @@ test("status controls referenced by app.js exist in index.html", async () => {
     assert.match(html, new RegExp(`id="${id}"`));
     assert.match(app, new RegExp(`(?:elements\\.|")${id}`));
   }
+  assert.match(html, /> VRX temperature</);
+  assert.match(html, /> VRX voltage</);
+  assert.doesNotMatch(html, /> Goggles (?:temperature|voltage)</);
 });
