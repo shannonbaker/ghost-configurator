@@ -1,6 +1,7 @@
 import { MSP, decodeAscii, parseCapabilities, parseConfiguredFields } from "./protocol.js";
 import { SerialSession } from "./serial.js";
 import { GhostMspApi } from "./ghost-api.js";
+import { compactManifestOptions } from "./profile.js";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
   ahiSizeFromPixels,
@@ -927,10 +928,13 @@ function buildProfile() {
     `stale_timeout_ms=${numberValue("statusStale", 0, 60000)}`, "",
   ];
   for (const definition of manifestWidgets.values()) {
+    const values = compactManifestOptions(
+      definition.options, definition.visibleKey,
+      (key, option) => manifestOptionValue(definition, key, option),
+    );
+    if (!values) continue;
     lines.push(`[${definition.widget.section}]`);
-    for (const [key, option] of definition.options) {
-      lines.push(`${key}=${manifestOptionValue(definition, key, option)}`);
-    }
+    for (const [key, value] of values) lines.push(`${key}=${value}`);
     lines.push("");
   }
   return lines.join("\n");
