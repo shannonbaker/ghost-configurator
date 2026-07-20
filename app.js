@@ -79,7 +79,17 @@ function setWidgetLogicalPosition(widget, requestedX, requestedY, markDirty = tr
   if (markDirty && elements.profileInfo.textContent !== "Not loaded") {
     elements.profileInfo.textContent = "Unsaved layout changes";
   }
+  if (markDirty && layoutDrag?.widget === widget) layoutDrag.changed = true;
   refreshLayout();
+}
+
+function saveCompletedLayoutChange() {
+  if (!session || !ghostApi || !widgetProfileSupported) {
+    setStatus("Layout updated locally. Connect a compatible flight controller to apply it.", "neutral");
+    return;
+  }
+  setStatus("Applying widget layout to the flight controller…");
+  queueProfileSave();
 }
 
 function layoutElement(widget) {
@@ -158,7 +168,10 @@ function beginLayoutDrag(event) {
   selectLayoutWidget(widget);
   const pointer = pointerLogicalPosition(event);
   const rect = widgetLogicalRect(widget);
-  layoutDrag = { widget, offsetX: pointer.x - rect.x, offsetY: pointer.y - rect.y };
+  layoutDrag = {
+    widget, offsetX: pointer.x - rect.x, offsetY: pointer.y - rect.y,
+    changed: false,
+  };
   event.currentTarget.setPointerCapture(event.pointerId);
   event.preventDefault();
 }
@@ -172,8 +185,10 @@ function moveLayoutDrag(event) {
 
 function endLayoutDrag(event) {
   if (!layoutDrag) return;
+  const changed = layoutDrag.changed;
   event.currentTarget.releasePointerCapture?.(event.pointerId);
   layoutDrag = null;
+  if (changed) saveCompletedLayoutChange();
 }
 
 const resizableWidgets = {
@@ -199,7 +214,9 @@ function beginLayoutResize(event) {
   event.preventDefault();
   selectLayoutWidget(widget);
   const rect = widgetLogicalRect(widget);
-  layoutResize = { widget, definition, x: rect.x, y: rect.y };
+  layoutResize = {
+    widget, definition, x: rect.x, y: rect.y, changed: false,
+  };
   event.currentTarget.setPointerCapture(event.pointerId);
 }
 
@@ -223,6 +240,7 @@ function moveLayoutResize(event) {
   layoutResize.definition.writeSize(
     width, height, layoutResize.x, layoutResize.y,
   );
+  layoutResize.changed = true;
   if (elements.profileInfo.textContent !== "Not loaded") {
     elements.profileInfo.textContent = "Unsaved layout changes";
   }
@@ -231,8 +249,10 @@ function moveLayoutResize(event) {
 
 function endLayoutResize(event) {
   if (!layoutResize) return;
+  const changed = layoutResize.changed;
   event.currentTarget.releasePointerCapture?.(event.pointerId);
   layoutResize = null;
+  if (changed) saveCompletedLayoutChange();
 }
 
 function moveSelectedWithKeyboard(event) {
@@ -771,5 +791,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=21").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=22").catch(() => {});
 }

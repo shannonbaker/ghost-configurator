@@ -60,3 +60,12 @@ test("layout editor exposes AHI height and a resize handle", async () => {
   assert.match(app, /height=\$\{numberValue\("ahiHeight", 1, 10000\)\}/);
   assert.match(app, /const resizableWidgets = \{/);
 });
+
+test("completed drag and resize operations automatically persist layout", async () => {
+  const app = await readFile(new URL("../app.js", import.meta.url), "utf8");
+  assert.match(app, /function saveCompletedLayoutChange\(\)/);
+  assert.equal(
+    app.match(/if \(changed\) saveCompletedLayoutChange\(\);/g)?.length, 2,
+  );
+  assert.match(app, /setStatus\("Applying widget layout to the flight controller…"\)/);
+});
