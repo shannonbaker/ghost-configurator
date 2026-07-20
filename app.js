@@ -1,6 +1,10 @@
 import { MSP, decodeAscii, parseCapabilities, parseConfiguredFields } from "./protocol.js";
 import { SerialSession } from "./serial.js";
 import { GhostMspApi } from "./ghost-api.js";
+import {
+  LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
+  clampPosition, logicalToPhysical, outputSize, statusRect, sticksRect,
+} from "./layout.js";
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll("[id]")].map((element) => [element.id, element]),
@@ -15,6 +19,167 @@ let streamStatsTimer = null;
 let streamStatsPrevious = null;
 let streamStatsGeneration = 0;
 let profileSaveQueue = Promise.resolve();
+let selectedLayoutWidget = null;
+let layoutDrag = null;
+
+const numeric = (id, fallback = 0) => {
+  const value = Number(elements[id]?.value);
+  return Number.isFinite(value) ? value : fallback;
+};
+
+function widgetLogicalRect(widget) {
+  if (widget === "ahi") {
+    return ahiRect({
+      centerX: numeric("ahiX", 5000),
+      centerY: numeric("ahiY", 5000),
+      width: numeric("ahiWidth", 4000),
+    });
+  }
+  if (widget === "sticks") {
+    return sticksRect({
+      x: numeric("sticksX", 1340),
+      y: numeric("sticksY", 750),
+      sizePercent: numeric("sticksSize", 100),
+    });
+  }
+  return statusRect({
+    x: numeric("statusX", 16),
+    y: numeric("statusY", 12),
+    sizePercent: numeric("statusSize", 100),
+    showVtxTemperature: elements.statusVtxTemperature.checked,
+    showVrxTemperature: elements.statusGogglesTemperature.checked,
+    showVtxVoltage: elements.statusVtxVoltage.checked,
+    showVrxVoltage: elements.statusGogglesVoltage.checked,
+  });
+}
+
+function setWidgetLogicalPosition(widget, requestedX, requestedY, markDirty = true) {
+  const rect = widgetLogicalRect(widget);
+  let x = requestedX;
+  let y = requestedY;
+  if (elements.layoutSnap.checked) {
+    x = Math.round(x / 10) * 10;
+    y = Math.round(y / 10) * 10;
+  }
+  ({ x, y } = clampPosition(x, y, rect.width, rect.height));
+  if (widget === "ahi") {
+    const center = ahiCenterFromPosition(x, y, rect.width, rect.height);
+    elements.ahiX.value = center.centerX;
+    elements.ahiY.value = center.centerY;
+  } else if (widget === "sticks") {
+    elements.sticksX.value = Math.round(x);
+    elements.sticksY.value = Math.round(y);
+  } else {
+    elements.statusX.value = Math.round(x);
+    elements.statusY.value = Math.round(y);
+  }
+  if (markDirty && elements.profileInfo.textContent !== "Not loaded") {
+    elements.profileInfo.textContent = "Unsaved layout changes";
+  }
+  refreshLayout();
+}
+
+function layoutElement(widget) {
+  return elements[`layout${widget[0].toUpperCase()}${widget.slice(1)}`];
+}
+
+function updateLayoutReadout() {
+  if (!selectedLayoutWidget) {
+    elements.layoutSelection.textContent = "Select or drag a widget.";
+    return;
+  }
+  const rect = widgetLogicalRect(selectedLayoutWidget);
+  const output = outputSize(elements.layoutResolution.value);
+  const logicalX = Math.round(rect.x);
+  const logicalY = Math.round(rect.y);
+  const physicalX = logicalToPhysical(logicalX, output.width, LOGICAL_WIDTH);
+  const physicalY = logicalToPhysical(logicalY, output.height, LOGICAL_HEIGHT);
+  elements.layoutSelection.textContent =
+    `${selectedLayoutWidget.toUpperCase()} · logical ${logicalX}, ${logicalY} · ` +
+    `${output.width}×${output.height}: ${physicalX}, ${physicalY}`;
+}
+
+function refreshLayout() {
+  const visibility = {
+    ahi: elements.ahiVisible.checked,
+    sticks: elements.sticksVisible.checked,
+    status: elements.statusVisible.checked,
+  };
+  for (const widget of ["ahi", "sticks", "status"]) {
+    const preview = layoutElement(widget);
+    const rect = widgetLogicalRect(widget);
+    preview.style.left = `${rect.x / LOGICAL_WIDTH * 100}%`;
+    preview.style.top = `${rect.y / LOGICAL_HEIGHT * 100}%`;
+    preview.style.width = `${rect.width / LOGICAL_WIDTH * 100}%`;
+    preview.style.height = `${rect.height / LOGICAL_HEIGHT * 100}%`;
+    preview.classList.toggle("disabled", !visibility[widget]);
+    preview.classList.toggle("selected", selectedLayoutWidget === widget);
+  }
+  const statusRows = [];
+  if (elements.statusVtxTemperature.checked || elements.statusVtxVoltage.checked) {
+    statusRows.push(`VTX${elements.statusVtxTemperature.checked ? " 00.0 C" : ""}` +
+      `${elements.statusVtxVoltage.checked ? " 00.00 V" : ""}`);
+  }
+  if (elements.statusGogglesTemperature.checked || elements.statusGogglesVoltage.checked) {
+    statusRows.push(`VRX${elements.statusGogglesTemperature.checked ? " 00.0 C" : ""}` +
+      `${elements.statusGogglesVoltage.checked ? " 00.00 V" : ""}`);
+  }
+  elements.layoutStatus.querySelector("small").innerHTML =
+    (statusRows.length ? statusRows : ["DISABLED"]).join("<br>");
+  updateLayoutReadout();
+}
+
+function selectLayoutWidget(widget) {
+  selectedLayoutWidget = widget;
+  refreshLayout();
+}
+
+function pointerLogicalPosition(event) {
+  const canvas = elements.layoutCanvas.getBoundingClientRect();
+  return {
+    x: (event.clientX - canvas.left) * LOGICAL_WIDTH / canvas.width,
+    y: (event.clientY - canvas.top) * LOGICAL_HEIGHT / canvas.height,
+  };
+}
+
+function beginLayoutDrag(event) {
+  const widget = event.currentTarget.dataset.widget;
+  if (!widget || event.currentTarget.classList.contains("disabled")) return;
+  selectLayoutWidget(widget);
+  const pointer = pointerLogicalPosition(event);
+  const rect = widgetLogicalRect(widget);
+  layoutDrag = { widget, offsetX: pointer.x - rect.x, offsetY: pointer.y - rect.y };
+  event.currentTarget.setPointerCapture(event.pointerId);
+  event.preventDefault();
+}
+
+function moveLayoutDrag(event) {
+  if (!layoutDrag) return;
+  const pointer = pointerLogicalPosition(event);
+  setWidgetLogicalPosition(layoutDrag.widget,
+    pointer.x - layoutDrag.offsetX, pointer.y - layoutDrag.offsetY);
+}
+
+function endLayoutDrag(event) {
+  if (!layoutDrag) return;
+  event.currentTarget.releasePointerCapture?.(event.pointerId);
+  layoutDrag = null;
+}
+
+function moveSelectedWithKeyboard(event) {
+  const widget = event.currentTarget.dataset.widget;
+  const directions = {
+    ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+    ArrowUp: [0, -1], ArrowDown: [0, 1],
+  };
+  if (!directions[event.key] || event.currentTarget.classList.contains("disabled")) return;
+  selectLayoutWidget(widget);
+  const rect = widgetLogicalRect(widget);
+  const step = event.shiftKey ? 10 : 1;
+  setWidgetLogicalPosition(widget, rect.x + directions[event.key][0] * step,
+    rect.y + directions[event.key][1] * step);
+  event.preventDefault();
+}
 
 function setStatus(message, level = "neutral") {
   elements.status.textContent = message;
@@ -272,6 +437,7 @@ function populateProfile(text) {
     setValue("statusStale", status.stale_timeout_ms);
   }
   enableRequiredWidgetFields();
+  refreshLayout();
 }
 
 function fieldName(id) {
@@ -296,7 +462,8 @@ function buildProfile() {
     throw new Error("Enable at least one system-status metric.");
   }
   const lines = [
-    "; GHOST widget profile v1", "[ahi.0]",
+    "; GHOST widget profile v1", "[display]",
+    "reference_width=1920", "reference_height=1080", "", "[ahi.0]",
     `pitch_field=${fieldName("ahiPitch")}`, `roll_field=${fieldName("ahiRoll")}`,
     `center_x=${numberValue("ahiX", 0, 10000)}`, `center_y=${numberValue("ahiY", 0, 10000)}`,
     `width=${numberValue("ahiWidth", 1, 10000)}`, "height=5000",
@@ -491,6 +658,7 @@ for (const id of ["ahiPitch", "ahiRoll", "sticksRoll", "sticksPitch", "sticksYaw
 }
 for (const id of ["ahiVisible", "sticksVisible", "statusVisible"]) {
   elements[id].addEventListener("change", () => {
+    refreshLayout();
     enableRequiredWidgetFields(true);
     if (!session || !ghostApi || !widgetProfileSupported) {
       setStatus("Connect a compatible flight controller before changing widget enable state.", "bad");
@@ -499,11 +667,30 @@ for (const id of ["ahiVisible", "sticksVisible", "statusVisible"]) {
     queueProfileSave();
   });
 }
+for (const widget of ["ahi", "sticks", "status"]) {
+  const preview = layoutElement(widget);
+  preview.addEventListener("pointerdown", beginLayoutDrag);
+  preview.addEventListener("pointermove", moveLayoutDrag);
+  preview.addEventListener("pointerup", endLayoutDrag);
+  preview.addEventListener("pointercancel", endLayoutDrag);
+  preview.addEventListener("keydown", moveSelectedWithKeyboard);
+  preview.addEventListener("focus", () => selectLayoutWidget(widget));
+}
+for (const id of ["ahiX", "ahiY", "ahiWidth", "sticksX", "sticksY",
+  "sticksSize", "statusX", "statusY", "statusSize",
+  "statusVtxTemperature", "statusGogglesTemperature",
+  "statusVtxVoltage", "statusGogglesVoltage"]) {
+  elements[id].addEventListener("input", refreshLayout);
+  elements[id].addEventListener("change", refreshLayout);
+}
+elements.layoutResolution.addEventListener("change", refreshLayout);
+elements.layoutSnap.addEventListener("change", refreshLayout);
 
 setConnected(false);
+refreshLayout();
 if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=18").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=19").catch(() => {});
 }

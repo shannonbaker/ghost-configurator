@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=18">
+  <link rel="stylesheet" href="./styles.css?v=19">
 </head>
 <body>
   <main>
@@ -29,6 +29,26 @@
       <div class="section-heading">
         <div><p class="eyebrow">VRX PROFILE</p><div class="heading-title"><h2>Widgets</h2><button id="loadProfile" disabled>Read profile</button></div></div>
         <span id="profileInfo">Not loaded</span>
+      </div>
+      <div class="layout-editor">
+        <div class="layout-toolbar">
+          <div><strong>Display layout</strong><small>Drag enabled widgets in the 1920×1080 logical workspace.</small></div>
+          <label>Preview output
+            <select id="layoutResolution">
+              <option value="1920x1080">1080p · 1920×1080</option>
+              <option value="1280x720">720p · 1280×720</option>
+            </select>
+          </label>
+          <label class="check"><input id="layoutSnap" type="checkbox" checked> Snap to 10 px</label>
+        </div>
+        <div id="layoutCanvas" class="layout-canvas" aria-label="Widget layout preview">
+          <span class="layout-guide vertical"></span><span class="layout-guide horizontal"></span>
+          <div id="layoutAhi" class="layout-widget ahi" data-widget="ahi" tabindex="0"><span>AHI</span><i></i></div>
+          <div id="layoutSticks" class="layout-widget sticks" data-widget="sticks" tabindex="0"><span>STICKS</span><b></b><b></b></div>
+          <div id="layoutStatus" class="layout-widget system-status" data-widget="status" tabindex="0"><span>STATUS</span><small>VTX&nbsp; 00.0 C&nbsp; 00.00 V<br>VRX&nbsp; 00.0 C&nbsp; 00.00 V</small></div>
+          <div id="layoutBps" class="layout-widget bitrate locked"><small>MSP&nbsp; 00.0 KBPS<br>GST&nbsp; 00.0 KBPS</small></div>
+        </div>
+        <div class="layout-readout"><span id="layoutSelection">Select or drag a widget.</span><span>Coordinates are stored at 1920×1080 and scaled by the VRX.</span></div>
       </div>
       <div class="widget-grid">
         <fieldset><legend><input id="ahiVisible" type="checkbox" checked> AHI</legend>
@@ -84,6 +104,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=18"></script>
+  <script type="module" src="./app.js?v=19"></script>
 </body>
 </html>
