@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
-  ahiCenterFromPosition, ahiRect, clampPosition, logicalToPhysical,
+  ahiCenterFromPosition, ahiRect, ahiSizeFromPixels, clampPosition,
+  logicalToPhysical,
   outputSize, statusRect, sticksRect,
 } from "../layout.js";
 
@@ -19,6 +20,15 @@ test("AHI drag round-trips through centre coordinates", () => {
     original.x, original.y, original.width, original.height,
   );
   assert.deepEqual(center, { centerX: 5000, centerY: 5000 });
+});
+
+test("AHI resize round-trips width and height profile units", () => {
+  const original = ahiRect({
+    centerX: 5000, centerY: 5000, width: 4000, height: 3000,
+  });
+  assert.deepEqual(ahiSizeFromPixels(original.width, original.height), {
+    width: 4000, height: 3000,
+  });
 });
 
 test("widget geometry and boundary clamping use logical pixels", () => {
@@ -38,4 +48,15 @@ test("default profile declares its logical reference resolution", async () => {
     new URL("../widgets/default.ini", import.meta.url), "utf8",
   );
   assert.match(profile, /\[display\]\s+reference_width=1920\s+reference_height=1080/);
+});
+
+test("layout editor exposes AHI height and a resize handle", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../app.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /id="ahiHeight"/);
+  assert.match(html, /class="layout-resize-handle" data-widget="ahi"/);
+  assert.match(app, /height=\$\{numberValue\("ahiHeight", 1, 10000\)\}/);
+  assert.match(app, /const resizableWidgets = \{/);
 });

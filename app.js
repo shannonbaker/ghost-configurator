@@ -3,6 +3,7 @@ import { SerialSession } from "./serial.js";
 import { GhostMspApi } from "./ghost-api.js";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
+  ahiSizeFromPixels,
   clampPosition, logicalToPhysical, outputSize, statusRect, sticksRect,
 } from "./layout.js";
 
@@ -21,6 +22,7 @@ let streamStatsGeneration = 0;
 let profileSaveQueue = Promise.resolve();
 let selectedLayoutWidget = null;
 let layoutDrag = null;
+let layoutResize = null;
 
 const numeric = (id, fallback = 0) => {
   const value = Number(elements[id]?.value);
@@ -33,6 +35,7 @@ function widgetLogicalRect(widget) {
       centerX: numeric("ahiX", 5000),
       centerY: numeric("ahiY", 5000),
       width: numeric("ahiWidth", 4000),
+      height: numeric("ahiHeight", 5000),
     });
   }
   if (widget === "sticks") {
@@ -94,9 +97,16 @@ function updateLayoutReadout() {
   const logicalY = Math.round(rect.y);
   const physicalX = logicalToPhysical(logicalX, output.width, LOGICAL_WIDTH);
   const physicalY = logicalToPhysical(logicalY, output.height, LOGICAL_HEIGHT);
+  const logicalWidth = Math.round(rect.width);
+  const logicalHeight = Math.round(rect.height);
+  const physicalWidth =
+    logicalToPhysical(logicalWidth, output.width, LOGICAL_WIDTH);
+  const physicalHeight =
+    logicalToPhysical(logicalHeight, output.height, LOGICAL_HEIGHT);
   elements.layoutSelection.textContent =
-    `${selectedLayoutWidget.toUpperCase()} · logical ${logicalX}, ${logicalY} · ` +
-    `${output.width}×${output.height}: ${physicalX}, ${physicalY}`;
+    `${selectedLayoutWidget.toUpperCase()} · logical ${logicalX}, ${logicalY} ` +
+    `· ${logicalWidth}×${logicalHeight} · ${output.width}×${output.height}: ` +
+    `${physicalX}, ${physicalY} · ${physicalWidth}×${physicalHeight}`;
 }
 
 function refreshLayout() {
@@ -164,6 +174,65 @@ function endLayoutDrag(event) {
   if (!layoutDrag) return;
   event.currentTarget.releasePointerCapture?.(event.pointerId);
   layoutDrag = null;
+}
+
+const resizableWidgets = {
+  ahi: {
+    minimumWidth: 120,
+    minimumHeight: 120,
+    writeSize(width, height, anchorX, anchorY) {
+      const normalized = ahiSizeFromPixels(width, height);
+      const center = ahiCenterFromPosition(anchorX, anchorY, width, height);
+      elements.ahiWidth.value = normalized.width;
+      elements.ahiHeight.value = normalized.height;
+      elements.ahiX.value = center.centerX;
+      elements.ahiY.value = center.centerY;
+    },
+  },
+};
+
+function beginLayoutResize(event) {
+  const widget = event.currentTarget.dataset.widget;
+  const definition = resizableWidgets[widget];
+  if (!definition) return;
+  event.stopPropagation();
+  event.preventDefault();
+  selectLayoutWidget(widget);
+  const rect = widgetLogicalRect(widget);
+  layoutResize = { widget, definition, x: rect.x, y: rect.y };
+  event.currentTarget.setPointerCapture(event.pointerId);
+}
+
+function moveLayoutResize(event) {
+  if (!layoutResize) return;
+  const pointer = pointerLogicalPosition(event);
+  let width = pointer.x - layoutResize.x;
+  let height = pointer.y - layoutResize.y;
+  if (elements.layoutSnap.checked) {
+    width = Math.round(width / 10) * 10;
+    height = Math.round(height / 10) * 10;
+  }
+  width = Math.min(
+    Math.max(width, layoutResize.definition.minimumWidth),
+    LOGICAL_WIDTH - layoutResize.x,
+  );
+  height = Math.min(
+    Math.max(height, layoutResize.definition.minimumHeight),
+    LOGICAL_HEIGHT - layoutResize.y,
+  );
+  layoutResize.definition.writeSize(
+    width, height, layoutResize.x, layoutResize.y,
+  );
+  if (elements.profileInfo.textContent !== "Not loaded") {
+    elements.profileInfo.textContent = "Unsaved layout changes";
+  }
+  refreshLayout();
+}
+
+function endLayoutResize(event) {
+  if (!layoutResize) return;
+  event.currentTarget.releasePointerCapture?.(event.pointerId);
+  layoutResize = null;
 }
 
 function moveSelectedWithKeyboard(event) {
@@ -408,7 +477,7 @@ function populateProfile(text) {
     elements.ahiVisible.checked = truthy(ahi.visible);
     setValue("ahiPitch", ahi.pitch_field); setValue("ahiRoll", ahi.roll_field);
     setValue("ahiX", ahi.center_x); setValue("ahiY", ahi.center_y);
-    setValue("ahiWidth", ahi.width);
+    setValue("ahiWidth", ahi.width); setValue("ahiHeight", ahi.height ?? "5000");
     setValue("ahiPitchScale", ahi.pitch_scale ?? "1.0");
     setValue("ahiSmoothing", ahi.smoothing);
     setValue("ahiFps", ahi.max_fps);
@@ -466,7 +535,8 @@ function buildProfile() {
     "reference_width=1920", "reference_height=1080", "", "[ahi.0]",
     `pitch_field=${fieldName("ahiPitch")}`, `roll_field=${fieldName("ahiRoll")}`,
     `center_x=${numberValue("ahiX", 0, 10000)}`, `center_y=${numberValue("ahiY", 0, 10000)}`,
-    `width=${numberValue("ahiWidth", 1, 10000)}`, "height=5000",
+    `width=${numberValue("ahiWidth", 1, 10000)}`,
+    `height=${numberValue("ahiHeight", 1, 10000)}`,
     `pitch_scale=${numberValue("ahiPitchScale", 0.1, 10)}`,
     `visible=${elements.ahiVisible.checked}`, `reverse_pitch=${elements.ahiReversePitch.checked}`,
     `reverse_roll=${elements.ahiReverseRoll.checked}`,
@@ -676,7 +746,16 @@ for (const widget of ["ahi", "sticks", "status"]) {
   preview.addEventListener("keydown", moveSelectedWithKeyboard);
   preview.addEventListener("focus", () => selectLayoutWidget(widget));
 }
-for (const id of ["ahiX", "ahiY", "ahiWidth", "sticksX", "sticksY",
+for (const handle of elements.layoutCanvas.querySelectorAll(
+  ".layout-resize-handle[data-widget]",
+)) {
+  handle.addEventListener("pointerdown", beginLayoutResize);
+}
+window.addEventListener("pointermove", moveLayoutResize);
+window.addEventListener("pointerup", endLayoutResize);
+window.addEventListener("pointercancel", endLayoutResize);
+for (const id of ["ahiX", "ahiY", "ahiWidth", "ahiHeight",
+  "sticksX", "sticksY",
   "sticksSize", "statusX", "statusY", "statusSize",
   "statusVtxTemperature", "statusGogglesTemperature",
   "statusVtxVoltage", "statusGogglesVoltage"]) {
@@ -692,5 +771,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=19").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=21").catch(() => {});
 }

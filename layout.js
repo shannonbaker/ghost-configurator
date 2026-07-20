@@ -66,3 +66,10 @@ export function ahiCenterFromPosition(x, y, width, height) {
     centerY: Math.round((y + height / 2) * 10000 / LOGICAL_HEIGHT),
   };
 }
+
+export function ahiSizeFromPixels(width, height) {
+  return {
+    width: Math.round(width * 10000 / LOGICAL_WIDTH),
+    height: Math.round(height * 10000 / LOGICAL_HEIGHT),
+  };
+}
