@@ -193,8 +193,9 @@ function toggleLayoutAnchor(event) {
     "aria-pressed", String(anchoredLayoutWidgets.has(widget)),
   );
   event.currentTarget.title = anchoredLayoutWidgets.has(widget)
-    ? "Position anchored; resizing uses the centre"
-    : "Anchor position and resize around the centre";
+    ? "Unlock position and return to corner resizing"
+    : "Lock position and resize from centre";
+  event.currentTarget.setAttribute("aria-label", event.currentTarget.title);
   selectLayoutWidget(widget);
 }
 
@@ -675,9 +676,12 @@ function attachManifestPreview(definition) {
     anchor.type = "button";
     anchor.className = "layout-anchor-toggle";
     anchor.dataset.widget = widgetKey;
-    anchor.setAttribute("aria-label", `Anchor ${definition.widget.title} position`);
+    anchor.setAttribute(
+      "aria-label",
+      `Lock ${definition.widget.title} position and resize from centre`,
+    );
     anchor.setAttribute("aria-pressed", "false");
-    anchor.title = "Anchor position and resize around the centre";
+    anchor.title = "Lock position and resize from centre";
     anchor.addEventListener("pointerdown", (event) => event.stopPropagation());
     anchor.addEventListener("click", toggleLayoutAnchor);
     preview.append(anchor);
@@ -1116,7 +1120,7 @@ for (const handle of elements.layoutCanvas.querySelectorAll(
 for (const anchor of elements.layoutCanvas.querySelectorAll(
   ".layout-anchor-toggle[data-widget]",
 )) {
-  anchor.title = "Anchor position and resize around the centre";
+  anchor.title = "Lock position and resize from centre";
   anchor.addEventListener("pointerdown", (event) => event.stopPropagation());
   anchor.addEventListener("click", toggleLayoutAnchor);
 }
@@ -1141,5 +1145,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=25").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=26").catch(() => {});
 }

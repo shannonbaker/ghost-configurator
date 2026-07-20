@@ -1,5 +1,5 @@
-const CACHE = "ghost-configurator-poc-v25";
-const ASSETS = ["./", "./index.html", "./styles.css?v=25", "./app.js?v=25", "./layout.js", "./serial.js", "./protocol.js", "./ghost-api.js", "./widgets/default.ini", "./widgets/catalog.json", "./widgets/manifests/rotating_logo.widget.ini", "./icon.svg", "./manifest.webmanifest"];
+const CACHE = "ghost-configurator-poc-v26";
+const ASSETS = ["./", "./index.html", "./styles.css?v=26", "./app.js?v=26", "./layout.js", "./serial.js", "./protocol.js", "./ghost-api.js", "./widgets/default.ini", "./widgets/catalog.json", "./widgets/manifests/rotating_logo.widget.ini", "./icon.svg", "./manifest.webmanifest"];
 self.addEventListener("install", (event) => event.waitUntil(
   caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()),
 ));
