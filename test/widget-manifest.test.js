@@ -31,6 +31,7 @@ test("catalog exposes a valid rotating-logo package", async () => {
     "./manifests/rotating_logo.widget.ini",
     "./manifests/link_status.widget.ini",
     "./manifests/vrx_status_bar.widget.ini",
+    "./manifests/head_tracking.widget.ini",
   ]);
 
   const sections = parseIni(await readFile(
@@ -71,6 +72,22 @@ test("VRX status bar package is horizontal and aspect locked", async () => {
   assert.equal(widget.geometry_lock_aspect, "true");
   assert.equal(sections.get("option.width").default, "1000");
   assert.equal(sections.get("option.height").default, "70");
+});
+
+test("head-tracking package exposes three-axis mapping and geometry", async () => {
+  const sections = parseIni(await readFile(
+    new URL("../widgets/manifests/head_tracking.widget.ini", import.meta.url),
+    "utf8",
+  ));
+  const widget = sections.get("widget");
+  assert.equal(widget.id, "head_tracking");
+  assert.equal(widget.section, "head_tracking.0");
+  assert.equal(widget.geometry_owner, "manager");
+  assert.equal(widget.geometry_lock_aspect, "true");
+  assert.equal(sections.get("option.roll_axis").default, "0");
+  assert.equal(sections.get("option.pan_axis").default, "2");
+  assert.equal(sections.get("option.tilt_axis").default, "1");
+  assert.equal(sections.get("option.ring_file").hidden, "true");
 });
 
 test("widget binary is constrained to the managed Goggles X directory", async () => {
