@@ -681,6 +681,12 @@ function attachManifestPreview(definition) {
       `Lock ${definition.widget.title} position and resize from centre`,
     );
     anchor.setAttribute("aria-pressed", "false");
+    anchor.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+      '<rect x="3" y="11" width="18" height="10" rx="2"></rect>' +
+      '<path class="lock-closed" d="M7 11V7a5 5 0 0 1 10 0v4"></path>' +
+      '<path class="lock-open" d="M7 11V7a5 5 0 0 1 9.8-1.4"></path>' +
+      "</svg>";
     anchor.title = "Lock position and resize from centre";
     anchor.addEventListener("pointerdown", (event) => event.stopPropagation());
     anchor.addEventListener("click", toggleLayoutAnchor);
@@ -1145,5 +1151,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=26").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=27").catch(() => {});
 }
