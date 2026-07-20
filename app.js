@@ -23,6 +23,8 @@ let profileSaveQueue = Promise.resolve();
 let selectedLayoutWidget = null;
 let layoutDrag = null;
 let layoutResize = null;
+const manifestWidgets = new Map();
+let lastProfileSections = null;
 
 const numeric = (id, fallback = 0) => {
   const value = Number(elements[id]?.value);
@@ -30,6 +32,18 @@ const numeric = (id, fallback = 0) => {
 };
 
 function widgetLogicalRect(widget) {
+  if (widget.startsWith("manifest:")) {
+    const definition = manifestWidgets.get(widget.slice(9));
+    if (!definition) return { x: 0, y: 0, width: 1, height: 1 };
+    const value = (key, fallback) =>
+      Number(definition.controls.get(key)?.value ?? fallback);
+    return {
+      x: value(definition.widget.geometry_x, 0),
+      y: value(definition.widget.geometry_y, 0),
+      width: value(definition.widget.geometry_width, 100),
+      height: value(definition.widget.geometry_height, 100),
+    };
+  }
   if (widget === "ahi") {
     return ahiRect({
       centerX: numeric("ahiX", 5000),
@@ -65,7 +79,11 @@ function setWidgetLogicalPosition(widget, requestedX, requestedY, markDirty = tr
     y = Math.round(y / 10) * 10;
   }
   ({ x, y } = clampPosition(x, y, rect.width, rect.height));
-  if (widget === "ahi") {
+  if (widget.startsWith("manifest:")) {
+    const definition = manifestWidgets.get(widget.slice(9));
+    definition.controls.get(definition.widget.geometry_x).value = Math.round(x);
+    definition.controls.get(definition.widget.geometry_y).value = Math.round(y);
+  } else if (widget === "ahi") {
     const center = ahiCenterFromPosition(x, y, rect.width, rect.height);
     elements.ahiX.value = center.centerX;
     elements.ahiY.value = center.centerY;
@@ -93,6 +111,9 @@ function saveCompletedLayoutChange() {
 }
 
 function layoutElement(widget) {
+  if (widget.startsWith("manifest:")) {
+    return manifestWidgets.get(widget.slice(9))?.preview;
+  }
   return elements[`layout${widget[0].toUpperCase()}${widget.slice(1)}`];
 }
 
@@ -125,14 +146,19 @@ function refreshLayout() {
     sticks: elements.sticksVisible.checked,
     status: elements.statusVisible.checked,
   };
-  for (const widget of ["ahi", "sticks", "status"]) {
+  for (const widget of ["ahi", "sticks", "status", ...manifestLayoutKeys()]) {
     const preview = layoutElement(widget);
+    if (!preview) continue;
     const rect = widgetLogicalRect(widget);
     preview.style.left = `${rect.x / LOGICAL_WIDTH * 100}%`;
     preview.style.top = `${rect.y / LOGICAL_HEIGHT * 100}%`;
     preview.style.width = `${rect.width / LOGICAL_WIDTH * 100}%`;
     preview.style.height = `${rect.height / LOGICAL_HEIGHT * 100}%`;
-    preview.classList.toggle("disabled", !visibility[widget]);
+    const manifestDefinition = widget.startsWith("manifest:")
+      ? manifestWidgets.get(widget.slice(9)) : null;
+    const visible = manifestDefinition
+      ? manifestDefinition.visibleControl.checked : visibility[widget];
+    preview.classList.toggle("disabled", !visible);
     preview.classList.toggle("selected", selectedLayoutWidget === widget);
   }
   const statusRows = [];
@@ -206,9 +232,40 @@ const resizableWidgets = {
   },
 };
 
+function manifestLayoutKeys() {
+  return [...manifestWidgets.values()]
+    .filter((definition) => definition.preview)
+    .map((definition) => `manifest:${definition.widget.id}`);
+}
+
+function resizableDefinition(widget) {
+  if (resizableWidgets[widget]) return resizableWidgets[widget];
+  if (!widget.startsWith("manifest:")) return null;
+  const definition = manifestWidgets.get(widget.slice(9));
+  if (!definition?.widget.geometry_width ||
+      !definition?.widget.geometry_height) return null;
+  const widthOption = definition.options.get(definition.widget.geometry_width);
+  const heightOption = definition.options.get(definition.widget.geometry_height);
+  return {
+    minimumWidth: Number(widthOption?.min ?? 20),
+    minimumHeight: Number(heightOption?.min ?? 20),
+    writeSize(width, height) {
+      if (definition.widget.geometry_lock_aspect === "true") {
+        const size = Math.max(width, height);
+        width = size;
+        height = size;
+      }
+      definition.controls.get(definition.widget.geometry_width).value =
+        Math.round(width);
+      definition.controls.get(definition.widget.geometry_height).value =
+        Math.round(height);
+    },
+  };
+}
+
 function beginLayoutResize(event) {
   const widget = event.currentTarget.dataset.widget;
-  const definition = resizableWidgets[widget];
+  const definition = resizableDefinition(widget);
   if (!definition) return;
   event.stopPropagation();
   event.preventDefault();
@@ -395,11 +452,42 @@ function requiredWidgetFields() {
     add("sticksYaw");
     add("sticksThrottle");
   }
+  for (const definition of manifestWidgets.values()) {
+    if (!definition.visibleControl.checked) continue;
+    for (const [key, option] of definition.options) {
+      if (option.type !== "field") continue;
+      const raw = definition.controls.get(key)?.value.trim().toUpperCase();
+      if (!raw) continue;
+      const numericId = Number(raw);
+      const capability = Number.isInteger(numericId)
+        ? capabilities.find((field) => field.id === numericId)
+        : capabilities.find((field) => field.name.toUpperCase() === raw);
+      required.add(capability?.name.toUpperCase() ?? raw);
+    }
+  }
   return required;
+}
+
+function manifestRequiredFieldRates() {
+  const rates = new Map();
+  for (const definition of manifestWidgets.values()) {
+    if (!definition.visibleControl.checked) continue;
+    for (const [key, option] of definition.options) {
+      if (option.type !== "field" || option.default_hz === undefined) continue;
+      const raw = definition.controls.get(key)?.value.trim().toUpperCase();
+      const numericId = Number(raw);
+      const capability = Number.isInteger(numericId)
+        ? capabilities.find((field) => field.id === numericId)
+        : capabilities.find((field) => field.name.toUpperCase() === raw);
+      if (capability) rates.set(capability.name.toUpperCase(), Number(option.default_hz));
+    }
+  }
+  return rates;
 }
 
 function enableRequiredWidgetFields(notify = false) {
   const required = requiredWidgetFields();
+  const requestedRates = manifestRequiredFieldRates();
   const enabled = [];
   const available = new Set();
   for (const row of elements.fields.querySelectorAll("tr[data-name]")) {
@@ -408,6 +496,11 @@ function enableRequiredWidgetFields(notify = false) {
     const onCheckbox = row.querySelector(".enabled");
     if (required.has(name) && !onCheckbox.checked) {
       onCheckbox.checked = true;
+      const requestedRate = requestedRates.get(name);
+      if (requestedRate) {
+        row.querySelector(".rate").value =
+          Math.min(requestedRate, Number(row.querySelector(".rate").max));
+      }
       enabled.push(row.dataset.name);
     }
   }
@@ -487,11 +580,164 @@ function parseIni(text) {
   return sections;
 }
 
+function parseWidgetManifest(text, source) {
+  const sections = parseIni(text);
+  const widget = sections.get("widget");
+  if (!widget || widget.schema_version !== "1" ||
+      !/^[A-Za-z0-9_-]+$/.test(widget.id ?? "") ||
+      !/^[A-Za-z0-9_.-]+$/.test(widget.section ?? "")) {
+    throw new Error(`Invalid widget manifest: ${source}`);
+  }
+  const options = new Map();
+  for (const [section, values] of sections) {
+    if (section.startsWith("option.")) options.set(section.slice(7), values);
+  }
+  const visible = [...options].find(([, option]) => option.role === "visible");
+  if (!visible || visible[1].type !== "boolean") {
+    throw new Error(`Widget ${widget.id} has no visibility option.`);
+  }
+  return { widget, options, visibleKey: visible[0] };
+}
+
+function createManifestControl(definition, key, option) {
+  const input = document.createElement("input");
+  input.dataset.manifestWidget = definition.widget.id;
+  input.dataset.manifestOption = key;
+  if (option.type === "boolean") {
+    input.type = "checkbox";
+    input.checked = truthy(option.default);
+  } else {
+    input.type = ["integer", "number", "logical_x", "logical_y",
+      "logical_width", "logical_height", "logical_size"].includes(option.type)
+      ? "number" : "text";
+    input.value = option.default ?? "";
+    if (option.min !== undefined) input.min = option.min;
+    if (option.max !== undefined) input.max = option.max;
+    if (option.step !== undefined) input.step = option.step;
+  }
+  definition.controls.set(key, input);
+  return input;
+}
+
+function attachManifestPreview(definition) {
+  const widgetKey = `manifest:${definition.widget.id}`;
+  const preview = document.createElement("div");
+  preview.className = `layout-widget manifest-widget ${definition.widget.preview ?? ""}`;
+  preview.dataset.widget = widgetKey;
+  preview.tabIndex = 0;
+  const label = document.createElement("span");
+  label.textContent = definition.widget.preview === "logo"
+    ? "G" : definition.widget.title;
+  preview.append(label);
+  if (definition.widget.geometry_width && definition.widget.geometry_height) {
+    const handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "layout-resize-handle";
+    handle.dataset.widget = widgetKey;
+    handle.setAttribute("aria-label", `Resize ${definition.widget.title}`);
+    handle.addEventListener("pointerdown", beginLayoutResize);
+    preview.append(handle);
+  }
+  preview.addEventListener("pointerdown", beginLayoutDrag);
+  preview.addEventListener("pointermove", moveLayoutDrag);
+  preview.addEventListener("pointerup", endLayoutDrag);
+  preview.addEventListener("pointercancel", endLayoutDrag);
+  preview.addEventListener("keydown", moveSelectedWithKeyboard);
+  preview.addEventListener("focus", () => selectLayoutWidget(widgetKey));
+  elements.layoutManifestWidgets.append(preview);
+  definition.preview = preview;
+}
+
+function renderManifestWidget(parsed) {
+  const definition = { ...parsed, controls: new Map(), preview: null };
+  const fieldset = document.createElement("fieldset");
+  const legend = document.createElement("legend");
+  const visibleControl = createManifestControl(
+    definition, definition.visibleKey,
+    definition.options.get(definition.visibleKey),
+  );
+  definition.visibleControl = visibleControl;
+  legend.append(visibleControl, ` ${definition.widget.title}`);
+  fieldset.append(legend);
+  if (definition.widget.description) {
+    const description = document.createElement("p");
+    description.className = "widget-description";
+    description.textContent = definition.widget.description;
+    fieldset.append(description);
+  }
+  for (const [key, option] of definition.options) {
+    if (key === definition.visibleKey) continue;
+    const control = createManifestControl(definition, key, option);
+    if (option.hidden === "true") continue;
+    const label = document.createElement("label");
+    if (option.type === "boolean") label.className = "check";
+    label.append(control, ` ${option.label ?? key}`);
+    fieldset.append(label);
+    control.addEventListener("input", refreshLayout);
+    control.addEventListener("change", () => {
+      refreshLayout();
+      if (option.type === "field") enableRequiredWidgetFields(true);
+    });
+  }
+  visibleControl.addEventListener("change", () => {
+    refreshLayout();
+    enableRequiredWidgetFields(true);
+    if (!session || !ghostApi || !widgetProfileSupported) {
+      setStatus("Connect a compatible flight controller before changing widget enable state.", "bad");
+      return;
+    }
+    queueProfileSave();
+  });
+  elements.manifestWidgets.append(fieldset);
+  manifestWidgets.set(definition.widget.id, definition);
+  if (definition.widget.geometry_x && definition.widget.geometry_y &&
+      definition.widget.geometry_width && definition.widget.geometry_height) {
+    attachManifestPreview(definition);
+  }
+  if (lastProfileSections) populateManifestProfiles(lastProfileSections);
+}
+
+async function loadWidgetManifests() {
+  try {
+    const catalogUrl = new URL("./widgets/catalog.json", location.href);
+    const response = await fetch(catalogUrl);
+    if (!response.ok) throw new Error(`Widget catalog HTTP ${response.status}`);
+    const catalog = await response.json();
+    if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.manifests)) {
+      throw new Error("Unsupported widget catalog.");
+    }
+    const parsed = await Promise.all(catalog.manifests.map(async (path) => {
+      const url = new URL(path, catalogUrl);
+      const manifestResponse = await fetch(url);
+      if (!manifestResponse.ok) throw new Error(`${path}: HTTP ${manifestResponse.status}`);
+      return parseWidgetManifest(await manifestResponse.text(), path);
+    }));
+    parsed.sort((a, b) => Number(a.widget.order ?? 100) - Number(b.widget.order ?? 100));
+    for (const manifest of parsed) renderManifestWidget(manifest);
+    refreshLayout();
+  } catch (error) {
+    setStatus(`Built-in widgets are available; package catalog failed: ${error.message}`, "bad");
+  }
+}
+
 const truthy = (value) => /^(1|true|yes|on)$/i.test(value ?? "");
 function setValue(id, value) { if (value !== undefined) elements[id].value = value; }
 
+function populateManifestProfiles(sections) {
+  for (const definition of manifestWidgets.values()) {
+    const profile = sections.get(definition.widget.section);
+    for (const [key, option] of definition.options) {
+      const control = definition.controls.get(key);
+      const value = profile?.[key] ?? option.default;
+      if (control.type === "checkbox") control.checked = truthy(value);
+      else if (value !== undefined) control.value = value;
+    }
+  }
+}
+
 function populateProfile(text) {
   const sections = parseIni(text);
+  lastProfileSections = sections;
   const ahi = sections.get("ahi.0");
   if (ahi) {
     elements.ahiVisible.checked = truthy(ahi.visible);
@@ -525,6 +771,7 @@ function populateProfile(text) {
     setValue("statusOpacity", status.background_opacity);
     setValue("statusStale", status.stale_timeout_ms);
   }
+  populateManifestProfiles(sections);
   enableRequiredWidgetFields();
   refreshLayout();
 }
@@ -539,6 +786,43 @@ function numberValue(id, minimum, maximum) {
   const value = Number(elements[id].value);
   if (!Number.isFinite(value) || value < minimum || value > maximum) {
     throw new Error(`${id} must be between ${minimum} and ${maximum}`);
+  }
+  return value;
+}
+
+function manifestOptionValue(definition, key, option) {
+  const control = definition.controls.get(key);
+  if (option.type === "boolean") return String(control.checked);
+  let value = control.value.trim();
+  if (option.type === "field") {
+    const numericId = Number(value);
+    if (!Number.isInteger(numericId)) {
+      const capability = capabilities.find(
+        (field) => field.name.toUpperCase() === value.toUpperCase(),
+      );
+      if (!capability) {
+        throw new Error(`${definition.widget.title}: unknown field ${value}`);
+      }
+      value = String(capability.id);
+    }
+    if (Number(value) < 1 || Number(value) > 255) {
+      throw new Error(`${definition.widget.title}: ${key} must be a field ID from 1 to 255.`);
+    }
+    return value;
+  }
+  if (["integer", "number", "logical_x", "logical_y",
+    "logical_width", "logical_height", "logical_size"].includes(option.type)) {
+    const number = Number(value);
+    const integerType = option.type !== "number";
+    if (!Number.isFinite(number) || (integerType && !Number.isInteger(number)) ||
+        (option.min !== undefined && number < Number(option.min)) ||
+        (option.max !== undefined && number > Number(option.max))) {
+      throw new Error(`${definition.widget.title}: ${key} is outside its allowed range.`);
+    }
+    return value;
+  }
+  if (!value || /[\r\n\x00-\x1f\x7f]/.test(value)) {
+    throw new Error(`${definition.widget.title}: ${key} is invalid.`);
   }
   return value;
 }
@@ -581,6 +865,13 @@ function buildProfile() {
     `background_opacity=${numberValue("statusOpacity", 0, 255)}`,
     `stale_timeout_ms=${numberValue("statusStale", 0, 60000)}`, "",
   ];
+  for (const definition of manifestWidgets.values()) {
+    lines.push(`[${definition.widget.section}]`);
+    for (const [key, option] of definition.options) {
+      lines.push(`${key}=${manifestOptionValue(definition, key, option)}`);
+    }
+    lines.push("");
+  }
   return lines.join("\n");
 }
 
@@ -787,9 +1078,10 @@ elements.layoutSnap.addEventListener("change", refreshLayout);
 
 setConnected(false);
 refreshLayout();
+loadWidgetManifests();
 if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=22").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=23").catch(() => {});
 }

@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=22">
+  <link rel="stylesheet" href="./styles.css?v=23">
 </head>
 <body>
   <main>
@@ -47,6 +47,7 @@
           <div id="layoutSticks" class="layout-widget sticks" data-widget="sticks" tabindex="0"><span>STICKS</span><b></b><b></b></div>
           <div id="layoutStatus" class="layout-widget system-status" data-widget="status" tabindex="0"><span>STATUS</span><small>VTX&nbsp; 00.0 C&nbsp; 00.00 V<br>VRX&nbsp; 00.0 C&nbsp; 00.00 V</small></div>
           <div id="layoutBps" class="layout-widget bitrate locked"><small>MSP&nbsp; 00.0 KBPS<br>GST&nbsp; 00.0 KBPS</small></div>
+          <div id="layoutManifestWidgets" class="layout-manifest-container"></div>
         </div>
         <div class="layout-readout"><span id="layoutSelection">Select or drag a widget.</span><span>Coordinates are stored at 1920×1080 and scaled by the VRX.</span></div>
       </div>
@@ -83,6 +84,7 @@
           <label>Background opacity<input id="statusOpacity" type="number" min="0" max="255" value="150"></label>
           <label>Stale timeout (ms)<input id="statusStale" type="number" min="0" max="60000" value="3000"></label>
         </fieldset>
+        <div id="manifestWidgets" class="manifest-widget-container"></div>
       </div>
       <div class="footer-actions"><p>Changing a widget’s enabled state saves it and its required field subscriptions immediately.</p><button id="applyProfile" class="primary" disabled>Save widget &amp; fields</button></div>
     </section>
@@ -105,6 +107,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=22"></script>
+  <script type="module" src="./app.js?v=23"></script>
 </body>
 </html>

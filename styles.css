@@ -58,6 +58,11 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .layout-readout { margin-top:8px; align-items:center; }
 .layout-readout span:first-child { color:var(--text); font-weight:650; }
 .widget-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:0 24px 24px; }
+.manifest-widget-container { display:contents; }
+.layout-manifest-container { display:contents; }
+.layout-widget.manifest-widget { background:#14211bcc; }
+.layout-widget.manifest-widget.logo { border-radius:50%; color:var(--accent); font-size:14px; }
+fieldset .widget-description { grid-column:1/-1; margin:0; color:var(--muted); font-size:12px; }
 fieldset { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:0; padding:18px; border:1px solid var(--line); border-radius:8px; }
 legend { padding:0 7px; font-weight:750; }
 label { display:flex; flex-direction:column; gap:5px; color:var(--muted); font-size:12px; }

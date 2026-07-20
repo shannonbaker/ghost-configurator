@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "manifests": [
+    "./manifests/rotating_logo.widget.ini"
+  ]
+}
