@@ -124,6 +124,8 @@ test("antenna-tracker package declares GPS inputs and test vector", async () => 
   assert.equal(sections.get("option.test_mode").default, "false");
   assert.equal(sections.get("option.expo").default, "3");
   assert.equal(sections.get("option.expo").max, "10");
+  assert.equal(sections.get("option.suppress_text").default, "false");
+  assert.equal(sections.get("option.suppress_text").arg, "--suppress-text");
   assert.equal(sections.get("option.pan_axis").group, "Pan");
   assert.equal(sections.get("option.pan_reference_deg").group, "Pan");
   assert.equal(sections.get("option.tilt_axis").group, "Tilt");
