@@ -28,6 +28,7 @@ test("catalog exposes a valid rotating-logo package", async () => {
   ));
   assert.equal(catalog.schemaVersion, 1);
   assert.deepEqual(catalog.manifests, [
+    "./manifests/compass.widget.ini",
     "./manifests/rotating_logo.widget.ini",
     "./manifests/link_status.widget.ini",
     "./manifests/vrx_status_bar.widget.ini",
@@ -47,6 +48,22 @@ test("catalog exposes a valid rotating-logo package", async () => {
   assert.equal(widget.geometry_height, "size");
   assert.equal(sections.get("option.visible").role, "visible");
   assert.equal(sections.get("option.size").type, "logical_size");
+});
+
+test("compass package declares heading and home-bearing inputs", async () => {
+  const sections = parseIni(await readFile(
+    new URL("../widgets/manifests/compass.widget.ini", import.meta.url),
+    "utf8",
+  ));
+  const widget = sections.get("widget");
+  assert.equal(widget.id, "compass");
+  assert.equal(widget.field_shm, "true");
+  assert.equal(widget.geometry_lock_aspect, "true");
+  assert.equal(sections.get("option.heading_field").default, "3");
+  assert.equal(sections.get("option.home_bearing_field").default, "12");
+  assert.equal(sections.get("option.heading_valid_field").default, "13");
+  assert.equal(sections.get("option.gps_fix_field").default, "14");
+  assert.equal(sections.get("option.home_valid_field").default, "15");
 });
 
 test("link-status package exposes resizable diagnostic geometry", async () => {
