@@ -90,3 +90,16 @@ test("resizable widgets support centre-anchored sizing", async () => {
   assert.match(app, /layoutResize\.centerX - width \/ 2/);
   assert.match(styles, /\.layout-widget\.anchored \{ cursor:not-allowed; \}/);
 });
+
+test("widget settings cards start collapsed and layout selection expands them", async () => {
+  const [html, app, styles] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../app.js", import.meta.url), "utf8"),
+    readFile(new URL("../styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.equal(html.match(/class="widget-card collapsed"/g)?.length, 3);
+  assert.equal(html.match(/class="widget-collapse-toggle"/g)?.length, 3);
+  assert.match(app, /fieldset\.className = "widget-card collapsed"/);
+  assert.match(app, /setWidgetCardExpanded\(widgetCard\(widget\), true\)/);
+  assert.match(styles, /\.widget-card\.collapsed \.widget-card-body \{ display:none; \}/);
+});

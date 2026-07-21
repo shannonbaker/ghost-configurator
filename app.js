@@ -176,11 +176,61 @@ function refreshLayout() {
   }
   elements.layoutStatus.querySelector("small").innerHTML =
     (statusRows.length ? statusRows : ["DISABLED"]).join("<br>");
+  updateWidgetCardSummaries();
   updateLayoutReadout();
+}
+
+function widgetCard(widget) {
+  if (widget.startsWith("manifest:")) {
+    return manifestWidgets.get(widget.slice(9))?.card ?? null;
+  }
+  return document.querySelector(`[data-widget-card="${widget}"]`);
+}
+
+function setWidgetCardExpanded(card, expanded) {
+  if (!card) return;
+  card.classList.toggle("collapsed", !expanded);
+  const toggle = card.querySelector(".widget-collapse-toggle");
+  if (!toggle) return;
+  toggle.setAttribute("aria-expanded", String(expanded));
+  const title = card.dataset.widgetTitle ?? "widget";
+  toggle.setAttribute("aria-label", `${expanded ? "Hide" : "Show"} ${title} settings`);
+}
+
+function initializeWidgetCard(card) {
+  const toggle = card.querySelector(".widget-collapse-toggle");
+  if (!toggle) return;
+  toggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setWidgetCardExpanded(card, card.classList.contains("collapsed"));
+  });
+  setWidgetCardExpanded(card, false);
+}
+
+function updateWidgetCardSummaries() {
+  const builtIns = [
+    ["ahi", elements.ahiVisible, elements.ahiFps],
+    ["sticks", elements.sticksVisible, elements.sticksFps],
+    ["status", elements.statusVisible, elements.statusFps],
+  ];
+  for (const [widget, visible, rate] of builtIns) {
+    const summary = widgetCard(widget)?.querySelector(".widget-summary");
+    if (summary) summary.textContent = `${visible.checked ? "Enabled" : "Disabled"} · ${rate.value} FPS`;
+  }
+  for (const definition of manifestWidgets.values()) {
+    if (!definition.summary) continue;
+    const parts = [definition.visibleControl.checked ? "Enabled" : "Disabled"];
+    const rate = definition.controls.get("refresh_hz") ?? definition.controls.get("fps");
+    if (rate) parts.push(`${rate.value} ${definition.controls.has("refresh_hz") ? "Hz" : "FPS"}`);
+    if (definition.controls.get("test_mode")?.checked) parts.push("Test mode");
+    definition.summary.textContent = parts.join(" · ");
+  }
 }
 
 function selectLayoutWidget(widget) {
   selectedLayoutWidget = widget;
+  setWidgetCardExpanded(widgetCard(widget), true);
   refreshLayout();
 }
 
@@ -720,19 +770,40 @@ function attachManifestPreview(definition) {
 function renderManifestWidget(parsed) {
   const definition = { ...parsed, controls: new Map(), preview: null };
   const fieldset = document.createElement("fieldset");
+  fieldset.className = "widget-card collapsed";
+  fieldset.dataset.widgetCard = `manifest:${definition.widget.id}`;
+  fieldset.dataset.widgetTitle = definition.widget.title;
+  definition.card = fieldset;
   const legend = document.createElement("legend");
   const visibleControl = createManifestControl(
     definition, definition.visibleKey,
     definition.options.get(definition.visibleKey),
   );
   definition.visibleControl = visibleControl;
-  legend.append(visibleControl, ` ${definition.widget.title}`);
+  const enable = document.createElement("label");
+  enable.className = "widget-enable";
+  enable.append(visibleControl, ` ${definition.widget.title}`);
+  const summary = document.createElement("span");
+  summary.className = "widget-summary";
+  definition.summary = summary;
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "widget-collapse-toggle";
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-label", `Show ${definition.widget.title} settings`);
+  const bodyId = `widgetCardBody-${definition.widget.id}`;
+  toggle.setAttribute("aria-controls", bodyId);
+  legend.append(enable, summary, toggle);
   fieldset.append(legend);
+  const body = document.createElement("div");
+  body.id = bodyId;
+  body.className = "widget-card-body";
+  fieldset.append(body);
   if (definition.widget.description) {
     const description = document.createElement("p");
     description.className = "widget-description";
     description.textContent = definition.widget.description;
-    fieldset.append(description);
+    body.append(description);
   }
   for (const [key, option] of definition.options) {
     if (key === definition.visibleKey) continue;
@@ -741,7 +812,7 @@ function renderManifestWidget(parsed) {
     const label = document.createElement("label");
     if (option.type === "boolean") label.className = "check";
     label.append(control, ` ${option.label ?? key}`);
-    fieldset.append(label);
+    body.append(label);
     control.addEventListener("input", refreshLayout);
     control.addEventListener("change", () => {
       refreshLayout();
@@ -759,6 +830,7 @@ function renderManifestWidget(parsed) {
   });
   elements.manifestWidgets.append(fieldset);
   manifestWidgets.set(definition.widget.id, definition);
+  initializeWidgetCard(fieldset);
   if (definition.widget.geometry_x && definition.widget.geometry_y &&
       definition.widget.geometry_width && definition.widget.geometry_height) {
     attachManifestPreview(definition);
@@ -1132,6 +1204,7 @@ for (const id of ["ahiVisible", "sticksVisible", "statusVisible"]) {
     queueProfileSave();
   });
 }
+for (const card of document.querySelectorAll(".widget-card")) initializeWidgetCard(card);
 for (const widget of ["ahi", "sticks", "status"]) {
   const preview = layoutElement(widget);
   preview.addEventListener("pointerdown", beginLayoutDrag);
@@ -1157,6 +1230,7 @@ window.addEventListener("pointermove", moveLayoutResize);
 window.addEventListener("pointerup", endLayoutResize);
 window.addEventListener("pointercancel", endLayoutResize);
 for (const id of ["ahiX", "ahiY", "ahiWidth", "ahiHeight",
+  "ahiFps", "sticksFps", "statusFps",
   "sticksX", "sticksY",
   "sticksSize", "statusX", "statusY", "statusSize",
   "statusVtxTemperature", "statusGogglesTemperature",

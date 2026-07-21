@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=33">
+  <link rel="stylesheet" href="./styles.css?v=34">
 </head>
 <body>
   <main>
@@ -52,7 +52,8 @@
         <div class="layout-readout"><span id="layoutSelection">Select or drag a widget.</span><span>Coordinates are stored at 1920×1080 and scaled by the VRX.</span></div>
       </div>
       <div class="widget-grid">
-        <fieldset><legend><input id="ahiVisible" type="checkbox" checked> AHI</legend>
+        <fieldset class="widget-card collapsed" data-widget-card="ahi" data-widget-title="AHI"><legend><label class="widget-enable"><input id="ahiVisible" type="checkbox" checked> AHI</label><span class="widget-summary">Enabled · 30 FPS</span><button type="button" class="widget-collapse-toggle" aria-expanded="false" aria-controls="ahiCardBody" aria-label="Show AHI settings"></button></legend>
+          <div id="ahiCardBody" class="widget-card-body">
           <label>Pitch field<input id="ahiPitch" value="PITCH"></label><label>Roll field<input id="ahiRoll" value="ROLL"></label>
           <label>Centre X (0–10000)<input id="ahiX" type="number" min="0" max="10000" value="5000"></label>
           <label>Centre Y (0–10000)<input id="ahiY" type="number" min="0" max="10000" value="5000"></label>
@@ -63,16 +64,20 @@
           <label>Maximum FPS<input id="ahiFps" type="number" min="1" max="60" value="30"></label>
           <label class="check"><input id="ahiReversePitch" type="checkbox"> Reverse pitch</label>
           <label class="check"><input id="ahiReverseRoll" type="checkbox"> Reverse roll</label>
+          </div>
         </fieldset>
-        <fieldset><legend><input id="sticksVisible" type="checkbox" checked> Sticks</legend>
+        <fieldset class="widget-card collapsed" data-widget-card="sticks" data-widget-title="Sticks"><legend><label class="widget-enable"><input id="sticksVisible" type="checkbox" checked> Sticks</label><span class="widget-summary">Enabled · 30 FPS</span><button type="button" class="widget-collapse-toggle" aria-expanded="false" aria-controls="sticksCardBody" aria-label="Show Sticks settings"></button></legend>
+          <div id="sticksCardBody" class="widget-card-body">
           <label>Transmitter mode<select id="sticksMode"><option value="2">Mode 2</option><option value="1">Mode 1</option></select></label>
           <label>Roll field<input id="sticksRoll" value="RC1"></label><label>Pitch field<input id="sticksPitch" value="RC2"></label>
           <label>Yaw field<input id="sticksYaw" value="RC3"></label><label>Throttle field<input id="sticksThrottle" value="RC4"></label>
           <label>X position<input id="sticksX" type="number" value="1340"></label><label>Y position<input id="sticksY" type="number" value="750"></label>
           <label>Size (%)<input id="sticksSize" type="number" min="20" max="300" value="100"></label>
           <label>Maximum FPS<input id="sticksFps" type="number" min="1" max="60" value="30"></label>
+          </div>
         </fieldset>
-        <fieldset><legend><input id="statusVisible" type="checkbox"> System status</legend>
+        <fieldset class="widget-card collapsed" data-widget-card="status" data-widget-title="System status"><legend><label class="widget-enable"><input id="statusVisible" type="checkbox"> System status</label><span class="widget-summary">Disabled · 4 FPS</span><button type="button" class="widget-collapse-toggle" aria-expanded="false" aria-controls="statusCardBody" aria-label="Show System status settings"></button></legend>
+          <div id="statusCardBody" class="widget-card-body">
           <label class="check"><input id="statusVtxTemperature" type="checkbox" checked> VTX temperature</label>
           <label class="check"><input id="statusGogglesTemperature" type="checkbox" checked> VRX temperature</label>
           <label class="check"><input id="statusVtxVoltage" type="checkbox" checked> VTX voltage</label>
@@ -83,6 +88,7 @@
           <label>Maximum FPS<input id="statusFps" type="number" min="1" max="30" value="4"></label>
           <label>Background opacity<input id="statusOpacity" type="number" min="0" max="255" value="150"></label>
           <label>Stale timeout (ms)<input id="statusStale" type="number" min="0" max="60000" value="3000"></label>
+          </div>
         </fieldset>
         <div id="manifestWidgets" class="manifest-widget-container"></div>
       </div>
@@ -107,6 +113,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=35"></script>
+  <script type="module" src="./app.js?v=36"></script>
 </body>
 </html>
