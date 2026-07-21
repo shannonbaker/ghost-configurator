@@ -805,10 +805,20 @@ function renderManifestWidget(parsed) {
     description.textContent = definition.widget.description;
     body.append(description);
   }
+  let currentGroup = null;
   for (const [key, option] of definition.options) {
     if (key === definition.visibleKey) continue;
     const control = createManifestControl(definition, key, option);
     if (option.hidden === "true") continue;
+    if (option.group && option.group !== currentGroup) {
+      const group = document.createElement("h3");
+      group.className = "widget-option-group";
+      group.textContent = option.group;
+      body.append(group);
+      currentGroup = option.group;
+    } else if (!option.group) {
+      currentGroup = null;
+    }
     const label = document.createElement("label");
     if (option.type === "boolean") label.className = "check";
     label.append(control, ` ${option.label ?? key}`);

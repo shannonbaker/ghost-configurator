@@ -107,6 +107,10 @@ test("antenna-tracker package declares GPS inputs and test vector", async () => 
   assert.equal(sections.get("option.test_mode").default, "false");
   assert.equal(sections.get("option.expo").default, "3");
   assert.equal(sections.get("option.expo").max, "10");
+  assert.equal(sections.get("option.pan_axis").group, "Pan");
+  assert.equal(sections.get("option.pan_reference_deg").group, "Pan");
+  assert.equal(sections.get("option.tilt_axis").group, "Tilt");
+  assert.equal(sections.get("option.vertical_range_deg").group, "Tilt");
 });
 
 test("widget binary is constrained to the managed Goggles X directory", async () => {
