@@ -64,6 +64,8 @@ test("compass package declares heading and home-bearing inputs", async () => {
   assert.equal(sections.get("option.heading_valid_field").default, "13");
   assert.equal(sections.get("option.gps_fix_field").default, "14");
   assert.equal(sections.get("option.home_valid_field").default, "15");
+  assert.equal(sections.get("option.test_mode").default, "false");
+  assert.equal(sections.get("option.test_mode").arg, "--test-mode");
 });
 
 test("link-status package exposes resizable diagnostic geometry", async () => {
