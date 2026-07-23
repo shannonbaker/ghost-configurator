@@ -171,6 +171,9 @@ test("PID scope package requests one complete Betaflight axis", async () => {
   assert.equal(sections.get("option.axis").type, "select");
   assert.equal(sections.get("option.axis").default, "ROLL");
   assert.equal(sections.get("option.axis").values, "ROLL,PITCH,YAW");
+  assert.equal(sections.get("option.text_size_px").default, "16");
+  assert.equal(sections.get("option.text_size_px").min, "10");
+  assert.equal(sections.get("option.text_size_px").max, "36");
   assert.equal(sections.get("option.data_hz").default, "40");
 });
 
