@@ -151,6 +151,9 @@ test("GHOST_DP statistics package exposes managed diagnostic geometry", async ()
   assert.equal(widget.binary, "/record/GHOST_DP/bin/ghost_dp_widget_stats");
   assert.equal(widget.geometry_lock_aspect, "true");
   assert.equal(sections.get("option.refresh_hz").default, "4");
+  assert.equal(sections.get("option.text_size_px").default, "17");
+  assert.equal(sections.get("option.text_size_px").min, "10");
+  assert.equal(sections.get("option.text_size_px").max, "36");
   assert.equal(sections.get("option.width").default, "360");
   assert.equal(sections.get("option.height").default, "224");
   assert.equal(sections.get("option.height").hidden, "true");
