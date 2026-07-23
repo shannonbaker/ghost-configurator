@@ -170,7 +170,7 @@ test("PID scope package requests one complete Betaflight axis", async () => {
   assert.deepEqual(["p", "i", "d", "f", "sum"].map(
     (term) => sections.get(`option.${term}_field`).default,
   ), ["32768", "32769", "32770", "32771", "32772"]);
-  assert.equal(sections.get("option.data_hz").default, "50");
+  assert.equal(sections.get("option.data_hz").default, "40");
 });
 
 test("widget binary is constrained to the managed Goggles X directory", async () => {
