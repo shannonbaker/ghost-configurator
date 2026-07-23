@@ -44,7 +44,7 @@
         <div id="layoutCanvas" class="layout-canvas" aria-label="Widget layout preview">
           <span class="layout-guide vertical"></span><span class="layout-guide horizontal"></span>
           <div id="layoutAhi" class="layout-widget ahi" data-widget="ahi" tabindex="0"><span>AHI</span><i></i><button type="button" class="layout-anchor-toggle" data-widget="ahi" aria-label="Lock AHI position and resize from centre" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path class="lock-closed" d="M7 11V7a5 5 0 0 1 10 0v4"></path><path class="lock-open" d="M7 11V7a5 5 0 0 1 9.8-1.4"></path></svg></button><button type="button" class="layout-resize-handle" data-widget="ahi" aria-label="Resize AHI"></button></div>
-          <div id="layoutSticks" class="layout-widget sticks" data-widget="sticks" tabindex="0"><span>STICKS</span><b></b><b></b></div>
+          <div id="layoutSticks" class="layout-widget sticks" data-widget="sticks" tabindex="0"><span>STICKS</span><b></b><b></b><button type="button" class="layout-anchor-toggle" data-widget="sticks" aria-label="Lock Sticks position and resize from centre" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path class="lock-closed" d="M7 11V7a5 5 0 0 1 10 0v4"></path><path class="lock-open" d="M7 11V7a5 5 0 0 1 9.8-1.4"></path></svg></button><button type="button" class="layout-resize-handle" data-widget="sticks" aria-label="Resize Sticks"></button></div>
           <div id="layoutStatus" class="layout-widget system-status" data-widget="status" tabindex="0"><span>STATUS</span><small>VTX&nbsp; 00.0 C&nbsp; 00.00 V<br>VRX&nbsp; 00.0 C&nbsp; 00.00 V</small></div>
           <div id="layoutBps" class="layout-widget bitrate locked"><small>MSP&nbsp; 00.0 KBPS<br>GST&nbsp; 00.0 KBPS</small></div>
           <div id="layoutManifestWidgets" class="layout-manifest-container"></div>
@@ -74,7 +74,7 @@
           <label>Roll field<input id="sticksRoll" value="RC1"></label><label>Pitch field<input id="sticksPitch" value="RC2"></label>
           <label>Yaw field<input id="sticksYaw" value="RC3"></label><label>Throttle field<input id="sticksThrottle" value="RC4"></label>
           <label>X position<input id="sticksX" type="number" value="1340"></label><label>Y position<input id="sticksY" type="number" value="750"></label>
-          <label>Size (%)<input id="sticksSize" type="number" min="20" max="300" value="100"></label>
+          <label>Size (%)<input id="sticksSize" type="number" min="25" max="200" value="100"></label>
           <label>Maximum FPS<input id="sticksFps" type="number" min="1" max="60" value="30"></label>
           <label>Minimum data rate<input id="sticksMinimumDataHz" type="number" min="1" max="1000" value="10"></label>
           <label>Preferred data rate<input id="sticksDataHz" type="number" min="1" max="1000" value="20"></label>
@@ -117,6 +117,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=39"></script>
+  <script type="module" src="./app.js?v=40"></script>
 </body>
 </html>

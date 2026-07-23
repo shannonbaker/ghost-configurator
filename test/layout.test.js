@@ -58,15 +58,21 @@ test("default profile declares its logical reference resolution", async () => {
   assert.match(profile, /\[display\]\s+reference_width=1920\s+reference_height=1080/);
 });
 
-test("layout editor exposes AHI height and a resize handle", async () => {
+test("layout editor exposes built-in resize and anchor controls", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../app.js", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="ahiHeight"/);
   assert.match(html, /class="layout-resize-handle" data-widget="ahi"/);
+  assert.match(html, /class="layout-resize-handle" data-widget="sticks"/);
+  assert.match(html, /class="layout-anchor-toggle" data-widget="sticks"/);
   assert.match(app, /height=\$\{numberValue\("ahiHeight", 1, 10000\)\}/);
   assert.match(app, /const resizableWidgets = \{/);
+  assert.match(app, /sticks:\s*\{\s*lockAspect: true,/);
+  assert.match(app, /elements\.sticksSize\.value = Math\.round\(width \/ 560 \* 100\)/);
+  assert.match(app, /size_percent=\$\{numberValue\("sticksSize", 25, 200\)\}/);
+  assert.match(app, /elements\.sticksSize\.addEventListener\("change"/);
 });
 
 test("completed drag and resize operations automatically persist layout", async () => {

@@ -308,6 +308,17 @@ const resizableWidgets = {
       elements.ahiY.value = center.centerY;
     },
   },
+  sticks: {
+    lockAspect: true,
+    aspectRatio: 560 / 300,
+    minimumWidth: 560 * 0.25,
+    minimumHeight: 300 * 0.25,
+    writeSize(width, _height, anchorX, anchorY) {
+      elements.sticksSize.value = Math.round(width / 560 * 100);
+      elements.sticksX.value = Math.round(anchorX);
+      elements.sticksY.value = Math.round(anchorY);
+    },
+  },
 };
 
 function manifestLayoutKeys() {
@@ -1074,7 +1085,7 @@ function buildProfile() {
     `yaw_field=${fieldName("sticksYaw")}`, `throttle_field=${fieldName("sticksThrottle")}`,
     "reverse_roll=false", "reverse_pitch=false", "reverse_yaw=false", "reverse_throttle=false",
     `position_x=${numberValue("sticksX", -4096, 4096)}`, `position_y=${numberValue("sticksY", -4096, 4096)}`,
-    `size_percent=${numberValue("sticksSize", 20, 300)}`,
+    `size_percent=${numberValue("sticksSize", 25, 200)}`,
     `max_fps=${numberValue("sticksFps", 1, 60)}`,
     `minimum_data_hz=${numberValue("sticksMinimumDataHz", 1, 1000)}`,
     `data_hz=${numberValue("sticksDataHz", 1, 1000)}`,
@@ -1333,6 +1344,10 @@ for (const id of ["ahiX", "ahiY", "ahiWidth", "ahiHeight",
   elements[id].addEventListener("input", refreshLayout);
   elements[id].addEventListener("change", refreshLayout);
 }
+elements.sticksSize.addEventListener("change", () => {
+  if (profileAvailable()) queueProfileSave();
+  else setStatus("Sticks size updated locally. Connect the VRX bridge to apply it.", "neutral");
+});
 elements.layoutResolution.addEventListener("change", refreshLayout);
 elements.layoutSnap.addEventListener("change", refreshLayout);
 
