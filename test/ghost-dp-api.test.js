@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GhostDpApi } from "../ghost-dp-api.js";
+import {
+  GhostDpApi, deadbandPresentation, displayDeadband, rawDeadband,
+} from "../ghost-dp-api.js";
 
 const u16 = (value) => [value & 255, value >> 8];
 const u32 = (value) => [value & 255, (value >>> 8) & 255,
@@ -43,4 +45,17 @@ test("discovers the native GHOST DisplayPort catalogue", async () => {
   assert.equal(session.requests[0].payload[2], 1);
   assert.equal(session.requests[1].payload[2], 3);
   assert.deepEqual(session.requests[1].payload.slice(6, 8), [0x34, 0x12]);
+});
+
+test("presents encoded deadbands in field units without losing raw values", () => {
+  const degrees = deadbandPresentation({ unit: 1, scaleExponent: -1 });
+  assert.deepEqual(degrees, { factor: 0.1, unit: "°", decimals: 1 });
+  assert.equal(displayDeadband(2, degrees), "0.2");
+  assert.equal(rawDeadband("0.2", degrees), 2);
+  assert.equal(rawDeadband("0.25", degrees), null);
+
+  const microseconds = deadbandPresentation({ unit: 7, scaleExponent: -6 });
+  assert.deepEqual(microseconds, { factor: 1, unit: "µs", decimals: 0 });
+  assert.equal(displayDeadband(3, microseconds), "3");
+  assert.equal(rawDeadband("3", microseconds), 3);
 });

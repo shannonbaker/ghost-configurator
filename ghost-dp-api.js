@@ -14,6 +14,33 @@ const readU16 = (data, offset) => data[offset] | (data[offset + 1] << 8);
 const readU32 = (data, offset) => (data[offset] | (data[offset + 1] << 8) |
   (data[offset + 2] << 16) | (data[offset + 3] << 24)) >>> 0;
 
+export function deadbandPresentation(field) {
+  if (field?.unit === 1 && Number.isInteger(field.scaleExponent)) {
+    return {
+      factor: 10 ** field.scaleExponent,
+      unit: "°",
+      decimals: Math.max(0, -field.scaleExponent),
+    };
+  }
+  if (field?.unit === 7 && field.scaleExponent === -6) {
+    return { factor: 1, unit: "µs", decimals: 0 };
+  }
+  return { factor: 1, unit: "raw", decimals: 0 };
+}
+
+export function displayDeadband(raw, presentation) {
+  return (raw * presentation.factor).toFixed(presentation.decimals);
+}
+
+export function rawDeadband(value, presentation) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return null;
+  const raw = Math.round(numeric / presentation.factor);
+  const tolerance = Math.max(1e-9, presentation.factor * 1e-6);
+  if (raw > 255 || Math.abs(numeric - raw * presentation.factor) > tolerance) return null;
+  return raw;
+}
+
 export class GhostDpApi {
   constructor(session) {
     this.session = session;

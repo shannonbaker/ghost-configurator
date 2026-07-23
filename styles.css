@@ -102,6 +102,9 @@ td:first-child,th:first-child { width:58px; }
 .field-name+small { display:block; font-size:11px; }
 input[type="checkbox"] { width:18px; height:18px; accent-color:var(--accent); }
 input[type="number"] { width:78px; margin-right:7px; padding:7px 8px; border:1px solid #3a4854; border-radius:5px; background:#0c1318; color:var(--text); font:inherit; }
+.deadband-control { display:inline-grid; gap:3px; }
+.deadband-control>div { display:flex; align-items:center; }
+.deadband-control small { color:var(--muted); font-size:10px; }
 .empty td { padding:42px; text-align:center; color:var(--muted); }
 .footer-actions { justify-content:space-between; padding:18px 24px; border-top:1px solid var(--line); }
 footer { padding:22px; border-top:1px solid var(--line); color:#637482; text-align:center; font-size:12px; }

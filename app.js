@@ -1,7 +1,9 @@
 import { MSP, decodeAscii, parseCapabilities, parseConfiguredFields } from "./protocol.js";
 import { SerialSession } from "./serial.js";
 import { GhostMspApi } from "./ghost-api.js";
-import { GhostDpApi } from "./ghost-dp-api.js";
+import {
+  GhostDpApi, deadbandPresentation, displayDeadband, rawDeadband,
+} from "./ghost-dp-api.js";
 import { compactManifestOptions } from "./profile.js";
 import { VrxApi } from "./vrx-api.js";
 import {
@@ -541,16 +543,18 @@ function renderFields() {
       ? 3 : (["PITCH", "ROLL"].includes(capability.name) ? 2 : 0);
     const deadband = fieldDeadbands.has(capability.id)
       ? fieldDeadbands.get(capability.id) : defaultDeadband;
-    const deadbandUnit = /^RC/.test(capability.name) ? "&micro;s" : "raw";
+    const presentation = deadbandPresentation(capability);
     const row = document.createElement("tr");
     row.innerHTML = `
       <td><input class="enabled" type="checkbox" ${current ? "checked" : ""} aria-label="Enable ${capability.name}"></td>
       <td><span class="field-name">${capability.name}</span><small>ID ${capability.id}</small></td>
       <td><input class="rate" type="number" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}"><span>Hz</span></td>
-      <td><input class="deadband" type="number" min="0" max="255" step="1" value="${deadband}"><span>${deadbandUnit}</span></td>
+      <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div><small>${deadband} raw</small></div></td>
       <td>${capability.maxHz} Hz</td>`;
     row.dataset.name = capability.name;
     row.dataset.id = capability.id;
+    row.dataset.deadbandFactor = presentation.factor;
+    row.dataset.deadbandDecimals = presentation.decimals;
     const onCheckbox = row.querySelector(".enabled");
     onCheckbox.addEventListener("change", () => {
       if (!onCheckbox.checked && requiredWidgetFields().has(row.dataset.name.toUpperCase())) {
@@ -560,9 +564,21 @@ function renderFields() {
       updateSummary();
     });
     row.querySelector(".rate").addEventListener("change", updateSummary);
-    row.querySelector(".deadband").addEventListener("change", () => {
-      fieldDeadbands.set(capability.id,
-        Math.max(0, Number(row.querySelector(".deadband").value) || 0));
+    const deadbandInput = row.querySelector(".deadband");
+    const rawReadout = row.querySelector(".deadband-control small");
+    const updateRawReadout = () => {
+      const raw = rawDeadband(deadbandInput.value, presentation);
+      rawReadout.textContent = raw === null ? "invalid" : `${raw} raw`;
+      deadbandInput.setCustomValidity(raw === null
+        ? `Use increments of ${displayDeadband(1, presentation)} ${presentation.unit}` : "");
+      return raw;
+    };
+    deadbandInput.addEventListener("input", updateRawReadout);
+    deadbandInput.addEventListener("change", () => {
+      const raw = updateRawReadout();
+      if (raw === null) return;
+      deadbandInput.value = displayDeadband(raw, presentation);
+      fieldDeadbands.set(capability.id, raw);
       if (profileAvailable()) queueProfileSave();
     });
     elements.fields.append(row);
@@ -1170,9 +1186,14 @@ function buildProfile() {
   for (const row of elements.fields.querySelectorAll("tr[data-id]")) {
     if (!row.querySelector(".enabled")?.checked) continue;
     const fieldId = Number(row.dataset.id);
-    const deadband = Number(row.querySelector(".deadband")?.value ?? 0);
+    const presentation = {
+      factor: Number(row.dataset.deadbandFactor ?? 1),
+      decimals: Number(row.dataset.deadbandDecimals ?? 0),
+    };
+    const deadband = rawDeadband(row.querySelector(".deadband")?.value ?? 0,
+      presentation);
     if (Number.isInteger(fieldId) && fieldId > 0 &&
-        Number.isInteger(deadband) && deadband >= 0 && deadband <= 255) {
+        deadband !== null) {
       fieldDeadbands.set(fieldId, deadband);
     }
   }
@@ -1438,5 +1459,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=32").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=33").catch(() => {});
 }

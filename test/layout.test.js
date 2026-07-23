@@ -75,8 +75,8 @@ test("layout editor exposes built-in resize and anchor controls", async () => {
   assert.match(app, /size_percent=\$\{numberValue\("sticksSize", 25, 200\)\}/);
   assert.match(app, /elements\.sticksSize\.addEventListener\("change"/);
   assert.equal(app.match(/stale_timeout_ms=2500/g)?.length, 2);
-  assert.match(html, /styles\.css\?v=36/);
-  assert.match(html, /app\.js\?v=44/);
+  assert.match(html, /styles\.css\?v=37/);
+  assert.match(html, /app\.js\?v=45/);
 });
 
 test("completed drag and resize operations automatically persist layout", async () => {
