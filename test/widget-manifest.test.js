@@ -165,11 +165,9 @@ test("PID scope package requests one complete Betaflight axis", async () => {
   assert.equal(widget.id, "pid_scope");
   assert.equal(widget.binary, "/record/GHOST_DP/bin/ghost_dp_widget_pid_scope");
   assert.equal(widget.geometry_lock_aspect, "false");
-  assert.equal(sections.get("option.setpoint_field").default, "19");
-  assert.equal(sections.get("option.gyro_field").default, "16");
-  assert.deepEqual(["p", "i", "d", "f", "sum"].map(
-    (term) => sections.get(`option.${term}_field`).default,
-  ), ["32768", "32769", "32770", "32771", "32772"]);
+  assert.equal(sections.get("option.axis").type, "select");
+  assert.equal(sections.get("option.axis").default, "ROLL");
+  assert.equal(sections.get("option.axis").values, "ROLL,PITCH,YAW");
   assert.equal(sections.get("option.data_hz").default, "40");
 });
 

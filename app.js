@@ -779,10 +779,23 @@ function parseWidgetManifest(text, source) {
 }
 
 function createManifestControl(definition, key, option) {
-  const input = document.createElement("input");
+  const input = document.createElement(option.type === "select" ? "select" : "input");
   input.dataset.manifestWidget = definition.widget.id;
   input.dataset.manifestOption = key;
-  if (option.type === "boolean") {
+  if (option.type === "select") {
+    const values = (option.values ?? "").split(",")
+      .map((value) => value.trim()).filter(Boolean);
+    if (!values.length) {
+      throw new Error(`${definition.widget.title}: ${key} has no select values.`);
+    }
+    for (const value of values) {
+      const choice = document.createElement("option");
+      choice.value = value;
+      choice.textContent = value;
+      input.append(choice);
+    }
+    input.value = option.default ?? values[0];
+  } else if (option.type === "boolean") {
     input.type = "checkbox";
     input.checked = truthy(option.default);
   } else {
