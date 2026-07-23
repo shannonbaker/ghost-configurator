@@ -1,6 +1,7 @@
 import { MSP, decodeAscii, parseCapabilities, parseConfiguredFields } from "./protocol.js";
 import { SerialSession } from "./serial.js";
 import { GhostMspApi } from "./ghost-api.js";
+import { GhostDpApi } from "./ghost-dp-api.js";
 import { compactManifestOptions } from "./profile.js";
 import { VrxApi } from "./vrx-api.js";
 import {
@@ -17,6 +18,7 @@ let session = null;
 let capabilities = [];
 let configured = new Map();
 let ghostApi = null;
+let ghostDpApi = null;
 let widgetProfileSupported = false;
 let streamStatsTimer = null;
 let streamStatsPrevious = null;
@@ -698,8 +700,17 @@ async function connect() {
       ghostApi = null;
       widgetProfileSupported = false;
       stopStreamStats();
-      elements.interfaceIdentity.textContent = "Legacy CLI fallback";
-      setStatus("Connected. This firmware will use the legacy CLI adapter.", "good");
+      try {
+        ghostDpApi = new GhostDpApi(session);
+        const api = await ghostDpApi.getCapabilities();
+        elements.interfaceIdentity.textContent =
+          `Native GHOST_DP ${api.major}.${api.minor}`;
+        setStatus("Connected using native GHOST DisplayPort discovery.", "good");
+      } catch (_) {
+        ghostDpApi = null;
+        elements.interfaceIdentity.textContent = "Legacy CLI fallback";
+        setStatus("Connected. This firmware will use the legacy CLI adapter.", "good");
+      }
     }
     if (window.confirm("Load the saved GHOST configuration from this flight controller?")) {
       if (ghostApi && widgetProfileSupported) await loadProfile();
@@ -1238,6 +1249,10 @@ async function loadFields() {
         const name = names.get(field.fieldId) ?? `FIELD_${field.fieldId}`;
         return [name, { ...field, name }];
       }));
+    } else if (ghostDpApi) {
+      setStatus("Reading the native GHOST DisplayPort field catalogue…");
+      capabilities = await ghostDpApi.getFieldCatalog();
+      configured = new Map();
     } else {
       setStatus("Entering CLI and reading GHOST capabilities…");
       await session.enterCli();
@@ -1293,6 +1308,12 @@ async function applyFields() {
     const selected = validateSelectedFields();
     elements.apply.disabled = true;
     setStatus("Writing configuration…");
+    if (ghostDpApi) {
+      if (!vrxApi) throw new Error("Connect the VRX before saving native GHOST_DP field policy.");
+      await applyProfile();
+      elements.apply.disabled = false;
+      return;
+    }
     if (ghostApi) {
       await persistMspFieldSubscriptions(selected);
       setStatus("Configuration committed, persisted, and verified without rebooting.", "good");
@@ -1325,6 +1346,7 @@ async function disconnect() {
   }
   capabilities = [];
   ghostApi = null;
+  ghostDpApi = null;
   widgetProfileSupported = false;
   configured.clear();
   elements.fields.replaceChildren();
@@ -1416,5 +1438,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=31").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=32").catch(() => {});
 }
