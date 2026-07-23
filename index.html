@@ -27,7 +27,7 @@
 
     <section class="panel widget-panel">
       <div class="section-heading">
-        <div><p class="eyebrow">VRX PROFILE</p><div class="heading-title"><h2>Widgets</h2><button id="loadProfile" disabled>Read profile</button><button id="reloadWidgets" disabled>Reload widgets</button></div></div>
+        <div><p class="eyebrow">VRX PROFILE</p><div class="heading-title"><h2>Widgets</h2><button id="connectVrx">Connect VRX</button><button id="loadProfile" disabled>Read profile</button><button id="reloadWidgets" disabled>Reload widgets</button></div></div>
         <span id="profileInfo">Not loaded</span>
       </div>
       <div class="layout-editor">
@@ -62,6 +62,8 @@
           <label>Pitch scale<input id="ahiPitchScale" type="number" min="0.1" max="10" step="0.1" value="1.0"></label>
           <label>Smoothing (0–10)<input id="ahiSmoothing" type="number" min="0" max="10" step="0.1" value="0"></label>
           <label>Maximum FPS<input id="ahiFps" type="number" min="1" max="60" value="30"></label>
+          <label>Minimum data rate<input id="ahiMinimumDataHz" type="number" min="1" max="1000" value="20"></label>
+          <label>Preferred data rate<input id="ahiDataHz" type="number" min="1" max="1000" value="30"></label>
           <label class="check"><input id="ahiReversePitch" type="checkbox"> Reverse pitch</label>
           <label class="check"><input id="ahiReverseRoll" type="checkbox"> Reverse roll</label>
           </div>
@@ -74,6 +76,8 @@
           <label>X position<input id="sticksX" type="number" value="1340"></label><label>Y position<input id="sticksY" type="number" value="750"></label>
           <label>Size (%)<input id="sticksSize" type="number" min="20" max="300" value="100"></label>
           <label>Maximum FPS<input id="sticksFps" type="number" min="1" max="60" value="30"></label>
+          <label>Minimum data rate<input id="sticksMinimumDataHz" type="number" min="1" max="1000" value="10"></label>
+          <label>Preferred data rate<input id="sticksDataHz" type="number" min="1" max="1000" value="20"></label>
           </div>
         </fieldset>
         <fieldset class="widget-card collapsed" data-widget-card="status" data-widget-title="System status"><legend><label class="widget-enable"><input id="statusVisible" type="checkbox"> System status</label><span class="widget-summary">Disabled · 4 FPS</span><button type="button" class="widget-collapse-toggle" aria-expanded="false" aria-controls="statusCardBody" aria-label="Show System status settings"></button></legend>
@@ -113,6 +117,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=37"></script>
+  <script type="module" src="./app.js?v=39"></script>
 </body>
 </html>

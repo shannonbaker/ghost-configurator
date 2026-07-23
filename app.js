@@ -2,6 +2,7 @@ import { MSP, decodeAscii, parseCapabilities, parseConfiguredFields } from "./pr
 import { SerialSession } from "./serial.js";
 import { GhostMspApi } from "./ghost-api.js";
 import { compactManifestOptions } from "./profile.js";
+import { VrxApi } from "./vrx-api.js";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
   ahiSizeFromPixels, aspectConstrainedSize,
@@ -28,6 +29,10 @@ let layoutResize = null;
 const anchoredLayoutWidgets = new Set();
 const manifestWidgets = new Map();
 let lastProfileSections = null;
+let vrxApi = null;
+let vrxInventory = null;
+
+const profileAvailable = () => Boolean(vrxApi || (session && ghostApi && widgetProfileSupported));
 
 const numeric = (id, fallback = 0) => {
   const value = Number(elements[id]?.value);
@@ -105,8 +110,8 @@ function setWidgetLogicalPosition(widget, requestedX, requestedY, markDirty = tr
 }
 
 function saveCompletedLayoutChange() {
-  if (!session || !ghostApi || !widgetProfileSupported) {
-    setStatus("Layout updated locally. Connect a compatible flight controller to apply it.", "neutral");
+  if (!profileAvailable()) {
+    setStatus("Layout updated locally. Connect the VRX bridge or a compatible flight controller to apply it.", "neutral");
     return;
   }
   setStatus("Applying widget layout to the flight controller…");
@@ -438,9 +443,11 @@ function setConnected(connected) {
   }
   if (elements.load) elements.load.disabled = !connected;
   if (elements.apply) elements.apply.disabled = !connected || capabilities.length === 0;
-  if (elements.loadProfile) elements.loadProfile.disabled = !connected || !widgetProfileSupported;
-  if (elements.reloadWidgets) elements.reloadWidgets.disabled = !connected || !widgetProfileSupported;
-  if (elements.applyProfile) elements.applyProfile.disabled = !connected || !widgetProfileSupported;
+  const profileReady = profileAvailable();
+  if (elements.loadProfile) elements.loadProfile.disabled = !profileReady;
+  if (elements.reloadWidgets) elements.reloadWidgets.disabled = !profileReady;
+  if (elements.applyProfile) elements.applyProfile.disabled = !profileReady;
+  if (elements.connectVrx) elements.connectVrx.textContent = vrxApi ? "Disconnect VRX" : "Connect VRX";
 }
 
 function stopStreamStats() {
@@ -832,8 +839,8 @@ function renderManifestWidget(parsed) {
   visibleControl.addEventListener("change", () => {
     refreshLayout();
     enableRequiredWidgetFields(true);
-    if (!session || !ghostApi || !widgetProfileSupported) {
-      setStatus("Connect a compatible flight controller before changing widget enable state.", "bad");
+    if (!profileAvailable()) {
+      setStatus("Connect the VRX bridge or a compatible flight controller before changing widget enable state.", "bad");
       return;
     }
     queueProfileSave();
@@ -865,9 +872,60 @@ async function loadWidgetManifests() {
     }));
     parsed.sort((a, b) => Number(a.widget.order ?? 100) - Number(b.widget.order ?? 100));
     for (const manifest of parsed) renderManifestWidget(manifest);
+    applyVrxInventory();
     refreshLayout();
   } catch (error) {
     setStatus(`Built-in widgets are available; package catalog failed: ${error.message}`, "bad");
+  }
+}
+
+function applyVrxInventory() {
+  if (!vrxInventory) return;
+  const installed = new Set(vrxInventory.widgets.map((widget) => widget.id));
+  for (const id of ["ahi", "sticks", "status"]) {
+    const card = document.querySelector(`[data-widget-card="${id}"]`);
+    if (card) card.hidden = !installed.has(id);
+    const preview = layoutElement(id);
+    if (preview) preview.hidden = !installed.has(id);
+  }
+  for (const definition of manifestWidgets.values()) {
+    const available = installed.has(definition.widget.id);
+    definition.card.hidden = !available;
+    if (definition.preview) definition.preview.hidden = !available;
+  }
+  refreshLayout();
+}
+
+async function connectVrx() {
+  if (vrxApi) {
+    vrxApi = null;
+    vrxInventory = null;
+    for (const element of document.querySelectorAll("[data-widget-card], .layout-widget"))
+      element.hidden = false;
+    setConnected(Boolean(session));
+    setStatus("VRX bridge disconnected.");
+    return;
+  }
+  elements.connectVrx.disabled = true;
+  try {
+    const api = new VrxApi();
+    await api.status();
+    const inventory = await api.inventory();
+    if (inventory.schemaVersion !== 1 || !Array.isArray(inventory.widgets))
+      throw new Error("VRX returned an unsupported widget inventory.");
+    vrxApi = api;
+    vrxInventory = inventory;
+    applyVrxInventory();
+    setConnected(Boolean(session));
+    await loadProfile();
+    setStatus(`Connected to VRX · ${inventory.widgets.length} installed widgets.`, "good");
+  } catch (error) {
+    vrxApi = null;
+    vrxInventory = null;
+    setStatus(`VRX bridge: ${error.message}`, "bad");
+  } finally {
+    elements.connectVrx.disabled = false;
+    setConnected(Boolean(session));
   }
 }
 
@@ -901,6 +959,8 @@ function populateProfile(text) {
     setValue("ahiPitchScale", ahi.pitch_scale ?? "1.0");
     setValue("ahiSmoothing", ahi.smoothing);
     setValue("ahiFps", ahi.max_fps);
+    setValue("ahiMinimumDataHz", ahi.minimum_data_hz ?? "20");
+    setValue("ahiDataHz", ahi.data_hz ?? "30");
     elements.ahiReversePitch.checked = truthy(ahi.reverse_pitch);
     elements.ahiReverseRoll.checked = truthy(ahi.reverse_roll);
   }
@@ -912,6 +972,8 @@ function populateProfile(text) {
     setValue("sticksThrottle", sticks.throttle_field); setValue("sticksX", sticks.position_x);
     setValue("sticksY", sticks.position_y); setValue("sticksSize", sticks.size_percent);
     setValue("sticksFps", sticks.max_fps);
+    setValue("sticksMinimumDataHz", sticks.minimum_data_hz ?? "10");
+    setValue("sticksDataHz", sticks.data_hz ?? "20");
   }
   const status = sections.get("status.0");
   if (status) {
@@ -988,6 +1050,10 @@ function buildProfile() {
       !statusMetricIds.some((id) => elements[id].checked)) {
     throw new Error("Enable at least one system-status metric.");
   }
+  if (numeric("ahiMinimumDataHz") > numeric("ahiDataHz") ||
+      numeric("sticksMinimumDataHz") > numeric("sticksDataHz")) {
+    throw new Error("A widget minimum data rate cannot exceed its preferred data rate.");
+  }
   const lines = [
     "; GHOST widget profile v1", "[display]",
     "reference_width=1920", "reference_height=1080", `r=${widgetReloadToken}`, "", "[ahi.0]",
@@ -999,14 +1065,20 @@ function buildProfile() {
     `visible=${elements.ahiVisible.checked}`, `reverse_pitch=${elements.ahiReversePitch.checked}`,
     `reverse_roll=${elements.ahiReverseRoll.checked}`,
     `smoothing=${numberValue("ahiSmoothing", 0, 10)}`,
-    `max_fps=${numberValue("ahiFps", 1, 60)}`, "stale_timeout_ms=0", "", "[sticks.0]",
+    `max_fps=${numberValue("ahiFps", 1, 60)}`,
+    `minimum_data_hz=${numberValue("ahiMinimumDataHz", 1, 1000)}`,
+    `data_hz=${numberValue("ahiDataHz", 1, 1000)}`,
+    "stale_timeout_ms=250", "", "[sticks.0]",
     `mode=${numberValue("sticksMode", 1, 2)}`, `visible=${elements.sticksVisible.checked}`,
     `roll_field=${fieldName("sticksRoll")}`, `pitch_field=${fieldName("sticksPitch")}`,
     `yaw_field=${fieldName("sticksYaw")}`, `throttle_field=${fieldName("sticksThrottle")}`,
     "reverse_roll=false", "reverse_pitch=false", "reverse_yaw=false", "reverse_throttle=false",
     `position_x=${numberValue("sticksX", -4096, 4096)}`, `position_y=${numberValue("sticksY", -4096, 4096)}`,
     `size_percent=${numberValue("sticksSize", 20, 300)}`,
-    `max_fps=${numberValue("sticksFps", 1, 60)}`, "stale_timeout_ms=500", "", "[status.0]",
+    `max_fps=${numberValue("sticksFps", 1, 60)}`,
+    `minimum_data_hz=${numberValue("sticksMinimumDataHz", 1, 1000)}`,
+    `data_hz=${numberValue("sticksDataHz", 1, 1000)}`,
+    "stale_timeout_ms=250", "", "[status.0]",
     `visible=${elements.statusVisible.checked}`,
     `show_vtx_temperature=${elements.statusVtxTemperature.checked}`,
     `show_goggles_temperature=${elements.statusGogglesTemperature.checked}`,
@@ -1034,16 +1106,27 @@ function buildProfile() {
 
 async function loadProfile() {
   try {
-    setStatus("Reading widget profile from the flight controller…");
-    const profile = await ghostApi.readProfile();
+    setStatus(vrxApi ? "Reading widget profile from the VRX..." :
+      "Reading widget profile from the flight controller...");
+    const profile = vrxApi ? await vrxApi.readProfile() : await ghostApi.readProfile();
     if (profile.length) populateProfile(profile.text);
-    elements.profileInfo.textContent = `Revision ${profile.revision} · ${profile.length} bytes`;
-    setStatus(profile.length ? "Widget profile loaded from FC." : "FC has no widget profile; showing defaults.", "good");
+    elements.profileInfo.textContent = `Revision ${profile.revision} | ${profile.length} bytes`;
+    setStatus(profile.length ? `Widget profile loaded from ${vrxApi ? "VRX" : "FC"}.` :
+      `${vrxApi ? "VRX" : "FC"} has no widget profile; showing defaults.`, "good");
   } catch (error) { setStatus(error.message, "bad"); }
 }
 
 async function applyProfile() {
   try {
+    if (vrxApi) {
+      const text = buildProfile();
+      elements.applyProfile.disabled = true;
+      setStatus("Storing the widget profile on the VRX...");
+      const result = await vrxApi.uploadProfile(text);
+      elements.profileInfo.textContent = `Revision ${result.revision} | ${result.length} bytes`;
+      setStatus("VRX profile installed. The native manager is applying it now.", "good");
+      return;
+    }
     if (!capabilities.length) await loadFields();
     enableRequiredWidgetFields(true);
     const text = buildProfile();
@@ -1057,8 +1140,8 @@ async function applyProfile() {
     setStatus("Widget profile and field subscriptions persisted. The FC will deliver them over DisplayPort.", "good");
   } catch (error) { setStatus(error.message, "bad"); }
   finally {
-    elements.applyProfile.disabled = !widgetProfileSupported;
-    elements.reloadWidgets.disabled = !widgetProfileSupported;
+    elements.applyProfile.disabled = !profileAvailable();
+    elements.reloadWidgets.disabled = !profileAvailable();
     elements.apply.disabled = capabilities.length === 0;
   }
 }
@@ -1071,7 +1154,7 @@ function queueProfileSave() {
 function reloadWidgets() {
   widgetReloadToken = (widgetReloadToken + 1) & 0xffff;
   elements.reloadWidgets.disabled = true;
-  setStatus("Saving widget reload request to the flight controller…");
+  setStatus(`Saving widget reload request to the ${vrxApi ? "VRX" : "flight controller"}...`);
   return queueProfileSave();
 }
 
@@ -1197,6 +1280,7 @@ elements.load.addEventListener("click", loadFields);
 elements.apply.addEventListener("click", applyFields);
 elements.hideInactive.addEventListener("change", updateSummary);
 elements.loadProfile.addEventListener("click", loadProfile);
+elements.connectVrx.addEventListener("click", connectVrx);
 elements.reloadWidgets.addEventListener("click", reloadWidgets);
 elements.applyProfile.addEventListener("click", queueProfileSave);
 for (const id of ["ahiPitch", "ahiRoll", "sticksRoll", "sticksPitch", "sticksYaw",
@@ -1207,8 +1291,8 @@ for (const id of ["ahiVisible", "sticksVisible", "statusVisible"]) {
   elements[id].addEventListener("change", () => {
     refreshLayout();
     enableRequiredWidgetFields(true);
-    if (!session || !ghostApi || !widgetProfileSupported) {
-      setStatus("Connect a compatible flight controller before changing widget enable state.", "bad");
+    if (!profileAvailable()) {
+      setStatus("Connect the VRX bridge or a compatible flight controller before changing widget enable state.", "bad");
       return;
     }
     queueProfileSave();
@@ -1240,7 +1324,8 @@ window.addEventListener("pointermove", moveLayoutResize);
 window.addEventListener("pointerup", endLayoutResize);
 window.addEventListener("pointercancel", endLayoutResize);
 for (const id of ["ahiX", "ahiY", "ahiWidth", "ahiHeight",
-  "ahiFps", "sticksFps", "statusFps",
+  "ahiFps", "ahiMinimumDataHz", "ahiDataHz",
+  "sticksFps", "sticksMinimumDataHz", "sticksDataHz", "statusFps",
   "sticksX", "sticksY",
   "sticksSize", "statusX", "statusY", "statusSize",
   "statusVtxTemperature", "statusGogglesTemperature",
@@ -1258,5 +1343,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=28").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=29").catch(() => {});
 }

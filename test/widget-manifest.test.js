@@ -34,6 +34,7 @@ test("catalog exposes a valid rotating-logo package", async () => {
     "./manifests/vrx_status_bar.widget.ini",
     "./manifests/head_tracking.widget.ini",
     "./manifests/antenna_tracker.widget.ini",
+    "./manifests/ghost_dp_stats.widget.ini",
   ]);
 
   const sections = parseIni(await readFile(
@@ -136,6 +137,21 @@ test("antenna-tracker package declares GPS inputs and test vector", async () => 
   assert.equal(sections.get("option.test_distance_m").group, "Test");
   assert.equal(sections.get("option.test_altitude_m").group, "Test");
   assert.equal(sections.get("option.test_bearing_deg").group, "Test");
+});
+
+test("GHOST_DP statistics package exposes managed diagnostic geometry", async () => {
+  const sections = parseIni(await readFile(
+    new URL("../widgets/manifests/ghost_dp_stats.widget.ini", import.meta.url),
+    "utf8",
+  ));
+  const widget = sections.get("widget");
+  assert.equal(widget.id, "ghost_dp_stats");
+  assert.equal(widget.section, "ghost_dp_stats.0");
+  assert.equal(widget.binary, "/record/GHOST_DP/bin/ghost_dp_widget_stats");
+  assert.equal(widget.geometry_lock_aspect, "true");
+  assert.equal(sections.get("option.refresh_hz").default, "4");
+  assert.equal(sections.get("option.width").default, "360");
+  assert.equal(sections.get("option.height").hidden, "true");
 });
 
 test("widget binary is constrained to the managed Goggles X directory", async () => {
