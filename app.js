@@ -4,7 +4,10 @@ import { GhostMspApi } from "./ghost-api.js";
 import {
   GhostDpApi, deadbandPresentation, displayDeadband, rawDeadband,
 } from "./ghost-dp-api.js";
-import { compactManifestOptions } from "./profile.js";
+import {
+  compactManifestOptions, parseManifestDependencies,
+  resolveManifestDependencies,
+} from "./profile.js";
 import { VrxApi } from "./vrx-api.js";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
@@ -634,23 +637,40 @@ function requiredWidgetFields() {
         : capabilities.find((field) => field.name.toUpperCase() === raw);
       required.add(capability?.name.toUpperCase() ?? raw);
     }
+    for (const dependency of resolveManifestDependencies(
+      definition.dependencies,
+      (key) => definition.controls.get(key)?.value ?? "",
+      capabilities,
+    )) required.add(dependency.name);
   }
   return required;
 }
 
 function manifestRequiredFieldRates() {
   const rates = new Map();
+  const setRate = (name, rate) => {
+    const numericRate = Number(rate);
+    if (!Number.isFinite(numericRate) || numericRate <= 0) return;
+    rates.set(name, Math.max(rates.get(name) ?? 0, numericRate));
+  };
   for (const definition of manifestWidgets.values()) {
     if (!definition.visibleControl.checked) continue;
     for (const [key, option] of definition.options) {
-      if (option.type !== "field" || option.default_hz === undefined) continue;
+      if (option.type !== "field" ||
+          (option.required_hz === undefined && option.default_hz === undefined)) continue;
       const raw = definition.controls.get(key)?.value.trim().toUpperCase();
       const numericId = Number(raw);
       const capability = Number.isInteger(numericId)
         ? capabilities.find((field) => field.id === numericId)
         : capabilities.find((field) => field.name.toUpperCase() === raw);
-      if (capability) rates.set(capability.name.toUpperCase(), Number(option.default_hz));
+      if (capability) setRate(capability.name.toUpperCase(),
+        option.required_hz ?? option.default_hz);
     }
+    for (const dependency of resolveManifestDependencies(
+      definition.dependencies,
+      (key) => definition.controls.get(key)?.value ?? "",
+      capabilities,
+    )) setRate(dependency.name, dependency.rateHz);
   }
   return rates;
 }
@@ -664,19 +684,27 @@ function enableRequiredWidgetFields(notify = false) {
     const name = row.dataset.name.toUpperCase();
     available.add(name);
     const onCheckbox = row.querySelector(".enabled");
-    if (required.has(name) && !onCheckbox.checked) {
-      onCheckbox.checked = true;
+    if (required.has(name)) {
+      let changed = false;
+      if (!onCheckbox.checked) {
+        onCheckbox.checked = true;
+        changed = true;
+      }
       const requestedRate = requestedRates.get(name);
       if (requestedRate) {
-        row.querySelector(".rate").value =
-          Math.min(requestedRate, Number(row.querySelector(".rate").max));
+        const rate = row.querySelector(".rate");
+        const requiredRate = Math.min(requestedRate, Number(rate.max));
+        if (Number(rate.value) < requiredRate) {
+          rate.value = requiredRate;
+          changed = true;
+        }
       }
-      enabled.push(row.dataset.name);
+      if (changed) enabled.push(row.dataset.name);
     }
   }
   updateSummary();
   if (notify && enabled.length) {
-    setStatus(`Enabled required field${enabled.length === 1 ? "" : "s"}: ${enabled.join(", ")}. Save widget & fields to persist.`, "good");
+    setStatus(`Updated required field${enabled.length === 1 ? "" : "s"}: ${enabled.join(", ")}. Save widget & fields to persist.`, "good");
   }
   const unavailable = [...required].filter((name) => !available.has(name));
   if (notify && capabilities.length && unavailable.length) {
@@ -775,7 +803,8 @@ function parseWidgetManifest(text, source) {
   if (!visible || visible[1].type !== "boolean") {
     throw new Error(`Widget ${widget.id} has no visibility option.`);
   }
-  return { widget, options, visibleKey: visible[0] };
+  const dependencies = parseManifestDependencies(sections, options);
+  return { widget, options, dependencies, visibleKey: visible[0] };
 }
 
 function createManifestControl(definition, key, option) {
@@ -918,7 +947,11 @@ function renderManifestWidget(parsed) {
     control.addEventListener("input", refreshLayout);
     control.addEventListener("change", () => {
       refreshLayout();
-      if (option.type === "field") enableRequiredWidgetFields(true);
+      if (option.type === "field" ||
+          definition.dependencies.some((dependency) => dependency.selector === key ||
+            dependency.rateOption === key)) {
+        enableRequiredWidgetFields(true);
+      }
     });
   }
   visibleControl.addEventListener("change", () => {

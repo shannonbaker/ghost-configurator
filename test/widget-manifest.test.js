@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import {
+  parseManifestDependencies, resolveManifestDependencies,
+} from "../profile.js";
+
 function parseIni(text) {
   const sections = new Map();
   let section;
@@ -178,6 +182,29 @@ test("PID scope package requests one complete Betaflight axis", async () => {
   assert.equal(sections.get("option.text_size_px").min, "10");
   assert.equal(sections.get("option.text_size_px").max, "36");
   assert.equal(sections.get("option.data_hz").default, "40");
+  assert.equal(sections.get("dependency.axis.ROLL").fields,
+    "19,16,32768,32769,32770,32771,32772");
+  assert.equal(sections.get("dependency.axis.PITCH").fields,
+    "20,17,32784,32785,32786,32787,32788");
+  assert.equal(sections.get("dependency.axis.YAW").fields,
+    "21,18,32800,32801,32802,32803,32804");
+  const options = new Map([...sections]
+    .filter(([section]) => section.startsWith("option."))
+    .map(([section, values]) => [section.slice(7), values]));
+  const dependencies = parseManifestDependencies(sections, options);
+  const values = new Map([["axis", "PITCH"], ["data_hz", "30"]]);
+  const capabilities = [
+    { id: 20, name: "RATE_SETPOINT_PITCH" },
+    { id: 17, name: "ANGULAR_RATE_PITCH" },
+    { id: 32784, name: "BF_PID_P_PITCH" },
+    { id: 32785, name: "BF_PID_I_PITCH" },
+    { id: 32786, name: "BF_PID_D_PITCH" },
+    { id: 32787, name: "BF_PID_F_PITCH" },
+    { id: 32788, name: "BF_PID_SUM_PITCH" },
+  ];
+  assert.deepEqual(resolveManifestDependencies(
+    dependencies, (key) => values.get(key), capabilities,
+  ), capabilities.map((field) => ({ name: field.name, rateHz: 30 })));
 });
 
 test("widget binary is constrained to the managed Goggles X directory", async () => {
