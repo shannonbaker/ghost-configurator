@@ -1379,5 +1379,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=29").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=30").catch(() => {});
 }
