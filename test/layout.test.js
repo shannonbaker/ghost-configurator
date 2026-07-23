@@ -70,6 +70,7 @@ test("layout editor exposes built-in resize and anchor controls", async () => {
   assert.match(app, /height=\$\{numberValue\("ahiHeight", 1, 10000\)\}/);
   assert.match(app, /const resizableWidgets = \{/);
   assert.match(app, /sticks:\s*\{\s*lockAspect: true,/);
+  assert.match(app, /uniformScale: true/);
   assert.match(app, /elements\.sticksSize\.value = Math\.round\(width \/ 560 \* 100\)/);
   assert.match(app, /size_percent=\$\{numberValue\("sticksSize", 25, 200\)\}/);
   assert.match(app, /elements\.sticksSize\.addEventListener\("change"/);
@@ -94,6 +95,7 @@ test("resizable widgets support centre-anchored sizing", async () => {
   assert.match(app, /const anchoredLayoutWidgets = new Set\(\)/);
   assert.match(app, /Math\.abs\(pointer\.x - layoutResize\.centerX\) \* 2/);
   assert.match(app, /layoutResize\.centerX - width \/ 2/);
+  assert.match(app, /Math\.abs\(widthScale - 1\) >= Math\.abs\(heightScale - 1\)/);
   assert.match(styles, /\.layout-widget\.anchored \{ cursor:not-allowed; \}/);
 });
 

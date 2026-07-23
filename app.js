@@ -310,6 +310,7 @@ const resizableWidgets = {
   },
   sticks: {
     lockAspect: true,
+    uniformScale: true,
     aspectRatio: 560 / 300,
     minimumWidth: 560 * 0.25,
     minimumHeight: 300 * 0.25,
@@ -364,6 +365,7 @@ function beginLayoutResize(event) {
   const rect = widgetLogicalRect(widget);
   layoutResize = {
     widget, definition, x: rect.x, y: rect.y,
+    width: rect.width, height: rect.height,
     centerX: rect.x + rect.width / 2,
     centerY: rect.y + rect.height / 2,
     anchored: anchoredLayoutWidgets.has(widget),
@@ -391,11 +393,30 @@ function moveLayoutResize(event) {
   const maximumHeight = layoutResize.anchored
     ? 2 * Math.min(layoutResize.centerY, LOGICAL_HEIGHT - layoutResize.centerY)
     : LOGICAL_HEIGHT - layoutResize.y;
-  width = Math.min(Math.max(width, layoutResize.definition.minimumWidth),
-    maximumWidth);
-  height = Math.min(Math.max(height, layoutResize.definition.minimumHeight),
-    maximumHeight);
-  if (layoutResize.definition.lockAspect) {
+  if (layoutResize.definition.uniformScale) {
+    const widthScale = width / layoutResize.width;
+    const heightScale = height / layoutResize.height;
+    const requestedScale = Math.abs(widthScale - 1) >= Math.abs(heightScale - 1)
+      ? widthScale : heightScale;
+    const minimumScale = Math.max(
+      layoutResize.definition.minimumWidth / layoutResize.width,
+      layoutResize.definition.minimumHeight / layoutResize.height,
+    );
+    const maximumScale = Math.min(
+      maximumWidth / layoutResize.width,
+      maximumHeight / layoutResize.height,
+    );
+    const scale = Math.min(Math.max(requestedScale, minimumScale), maximumScale);
+    width = layoutResize.width * scale;
+    height = layoutResize.height * scale;
+  } else {
+    width = Math.min(Math.max(width, layoutResize.definition.minimumWidth),
+      maximumWidth);
+    height = Math.min(Math.max(height, layoutResize.definition.minimumHeight),
+      maximumHeight);
+  }
+  if (layoutResize.definition.lockAspect &&
+      !layoutResize.definition.uniformScale) {
     ({ width, height } = aspectConstrainedSize(
       width, height, layoutResize.definition.aspectRatio,
       layoutResize.definition.minimumWidth,
