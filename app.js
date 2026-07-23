@@ -28,6 +28,7 @@ let layoutDrag = null;
 let layoutResize = null;
 const anchoredLayoutWidgets = new Set();
 const manifestWidgets = new Map();
+const fieldDeadbands = new Map();
 let lastProfileSections = null;
 let vrxApi = null;
 let vrxInventory = null;
@@ -534,13 +535,20 @@ function renderFields() {
   elements.fields.replaceChildren();
   for (const capability of capabilities) {
     const current = configured.get(capability.name);
+    const defaultDeadband = /^RC(?:[1-9]|1[0-8])$/.test(capability.name)
+      ? 3 : (["PITCH", "ROLL"].includes(capability.name) ? 2 : 0);
+    const deadband = fieldDeadbands.has(capability.id)
+      ? fieldDeadbands.get(capability.id) : defaultDeadband;
+    const deadbandUnit = /^RC/.test(capability.name) ? "&micro;s" : "raw";
     const row = document.createElement("tr");
     row.innerHTML = `
       <td><input class="enabled" type="checkbox" ${current ? "checked" : ""} aria-label="Enable ${capability.name}"></td>
       <td><span class="field-name">${capability.name}</span><small>ID ${capability.id}</small></td>
       <td><input class="rate" type="number" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}"><span>Hz</span></td>
+      <td><input class="deadband" type="number" min="0" max="255" step="1" value="${deadband}"><span>${deadbandUnit}</span></td>
       <td>${capability.maxHz} Hz</td>`;
     row.dataset.name = capability.name;
+    row.dataset.id = capability.id;
     const onCheckbox = row.querySelector(".enabled");
     onCheckbox.addEventListener("change", () => {
       if (!onCheckbox.checked && requiredWidgetFields().has(row.dataset.name.toUpperCase())) {
@@ -550,6 +558,11 @@ function renderFields() {
       updateSummary();
     });
     row.querySelector(".rate").addEventListener("change", updateSummary);
+    row.querySelector(".deadband").addEventListener("change", () => {
+      fieldDeadbands.set(capability.id,
+        Math.max(0, Number(row.querySelector(".deadband").value) || 0));
+      if (profileAvailable()) queueProfileSave();
+    });
     elements.fields.append(row);
   }
   enableRequiredWidgetFields();
@@ -979,6 +992,15 @@ function populateManifestProfiles(sections) {
 function populateProfile(text) {
   const sections = parseIni(text);
   lastProfileSections = sections;
+  fieldDeadbands.clear();
+  for (const [section, values] of sections) {
+    const match = /^field_policy\.(\d+)$/.exec(section);
+    if (!match) continue;
+    const fieldId = Number(match[1]);
+    const deadband = Number(values.deadband_raw ?? 0);
+    if (fieldId > 0 && Number.isInteger(deadband) && deadband >= 0)
+      fieldDeadbands.set(fieldId, deadband);
+  }
   const parsedReloadToken = Number(sections.get("display")?.r ?? 0);
   widgetReloadToken = Number.isInteger(parsedReloadToken) &&
     parsedReloadToken >= 0 && parsedReloadToken <= 65535 ? parsedReloadToken : 0;
@@ -1020,6 +1042,7 @@ function populateProfile(text) {
     setValue("statusStale", status.stale_timeout_ms);
   }
   populateManifestProfiles(sections);
+  if (capabilities.length) renderFields();
   enableRequiredWidgetFields();
   refreshLayout();
 }
@@ -1132,6 +1155,20 @@ function buildProfile() {
     lines.push(`[${definition.widget.section}]`);
     for (const [key, value] of values) lines.push(`${key}=${value}`);
     lines.push("");
+  }
+  for (const row of elements.fields.querySelectorAll("tr[data-id]")) {
+    if (!row.querySelector(".enabled")?.checked) continue;
+    const fieldId = Number(row.dataset.id);
+    const deadband = Number(row.querySelector(".deadband")?.value ?? 0);
+    if (Number.isInteger(fieldId) && fieldId > 0 &&
+        Number.isInteger(deadband) && deadband >= 0 && deadband <= 255) {
+      fieldDeadbands.set(fieldId, deadband);
+    }
+  }
+  for (const [fieldId, deadband] of [...fieldDeadbands.entries()]
+    .filter(([, value]) => value > 0)
+    .sort((first, second) => first[0] - second[0])) {
+    lines.push(`[field_policy.${fieldId}]`, `deadband_raw=${deadband}`, "");
   }
   return lines.join("\n");
 }
@@ -1379,5 +1416,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=30").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=31").catch(() => {});
 }
