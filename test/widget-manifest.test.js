@@ -34,6 +34,7 @@ test("catalog exposes a valid rotating-logo package", async () => {
     "./manifests/vrx_status_bar.widget.ini",
     "./manifests/head_tracking.widget.ini",
     "./manifests/antenna_tracker.widget.ini",
+    "./manifests/pid_scope.widget.ini",
     "./manifests/ghost_dp_stats.widget.ini",
   ]);
 
@@ -153,6 +154,23 @@ test("GHOST_DP statistics package exposes managed diagnostic geometry", async ()
   assert.equal(sections.get("option.width").default, "360");
   assert.equal(sections.get("option.height").default, "224");
   assert.equal(sections.get("option.height").hidden, "true");
+});
+
+test("PID scope package requests one complete Betaflight axis", async () => {
+  const sections = parseIni(await readFile(
+    new URL("../widgets/manifests/pid_scope.widget.ini", import.meta.url),
+    "utf8",
+  ));
+  const widget = sections.get("widget");
+  assert.equal(widget.id, "pid_scope");
+  assert.equal(widget.binary, "/record/GHOST_DP/bin/ghost_dp_widget_pid_scope");
+  assert.equal(widget.geometry_lock_aspect, "false");
+  assert.equal(sections.get("option.setpoint_field").default, "19");
+  assert.equal(sections.get("option.gyro_field").default, "16");
+  assert.deepEqual(["p", "i", "d", "f", "sum"].map(
+    (term) => sections.get(`option.${term}_field`).default,
+  ), ["32768", "32769", "32770", "32771", "32772"]);
+  assert.equal(sections.get("option.data_hz").default, "50");
 });
 
 test("widget binary is constrained to the managed Goggles X directory", async () => {

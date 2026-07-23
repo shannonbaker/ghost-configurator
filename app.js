@@ -1103,8 +1103,8 @@ function manifestOptionValue(definition, key, option) {
       }
       value = String(capability.id);
     }
-    if (Number(value) < 1 || Number(value) > 255) {
-      throw new Error(`${definition.widget.title}: ${key} must be a field ID from 1 to 255.`);
+    if (Number(value) < 1 || Number(value) > 65535) {
+      throw new Error(`${definition.widget.title}: ${key} must be a field ID from 1 to 65535.`);
     }
     return value;
   }
@@ -1459,5 +1459,5 @@ if (!("serial" in navigator)) {
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=33").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=34").catch(() => {});
 }
