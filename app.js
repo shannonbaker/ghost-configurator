@@ -834,12 +834,12 @@ function attachStickMenuToggle(definition, key, option, label) {
   toggle.dataset.stickMenuWidget = definition.widget.id;
   toggle.dataset.stickMenuOption = key;
   toggle.addEventListener("change", () => {
-    if (!profileAvailable()) {
+    if (!vrxApi) {
       setStatus("Connect the VRX before changing stick-menu selections.", "bad");
       return;
     }
     setStatus("Saving stick-menu selection to the VRX...");
-    queueProfileSave();
+    queueStickMenuSave();
   });
   menuLabel.append(toggle, " Stick menu");
   row.append(menuLabel);
@@ -1400,6 +1400,73 @@ async function applyProfile() {
 
 function queueProfileSave() {
   profileSaveQueue = profileSaveQueue.catch(() => {}).then(() => applyProfile());
+  return profileSaveQueue;
+}
+
+function selectedStickMenuLines() {
+  const installed = vrxInventory
+    ? new Set(vrxInventory.widgets.map((widget) => widget.id))
+    : null;
+  const lines = [];
+  for (const definition of stickMenuDefinitions()) {
+    if (installed && !installed.has(definition.widget.id)) continue;
+    const selected = [];
+    for (const [key, option] of definition.options) {
+      const policy = stickMenuPolicy(option);
+      const toggle = definition.menuControls.get(key);
+      if (policy.allowed && toggle?.checked) selected.push(key);
+    }
+    lines.push(definition.widget.section + "=" + selected.join(","));
+  }
+  return lines;
+}
+
+function replaceProfileSection(text, name, values) {
+  const source = text.replace(/\r\n/g, "\n").split("\n");
+  let start = source.findIndex((line) => line.trim() === "[" + name + "]");
+  let end = source.length;
+  if (start >= 0) {
+    for (let index = start + 1; index < source.length; ++index) {
+      if (/^\s*\[[^\]]+\]\s*$/.test(source[index])) {
+        end = index;
+        break;
+      }
+    }
+  } else {
+    while (source.length && !source[source.length - 1].trim()) source.pop();
+    start = source.length;
+    end = start;
+  }
+  const replacement = ["[" + name + "]", ...values, ""];
+  source.splice(start, end - start, ...replacement);
+  return source.join("\n").replace(/\n*$/, "\n");
+}
+
+async function applyStickMenuSelection() {
+  try {
+    if (!vrxApi) throw new Error("Connect the VRX before changing stick-menu selections.");
+    const current = await vrxApi.readProfile();
+    const text = replaceProfileSection(
+      current.text, "stick_menu", selectedStickMenuLines(),
+    );
+    const result = await vrxApi.uploadProfile(text);
+    const readback = await vrxApi.readProfile();
+    if (readback.crc32 !== result.crc32 || readback.length !== result.length) {
+      throw new Error("VRX stick-menu profile read-back did not match.");
+    }
+    lastProfileSections = parseIni(readback.text);
+    elements.profileInfo.textContent =
+      "Revision " + readback.revision + " | " + readback.length + " bytes";
+    setStatus("Stick-menu selection saved and verified on the VRX.", "good");
+  } catch (error) {
+    setStatus(error.message, "bad");
+    throw error;
+  }
+}
+
+function queueStickMenuSave() {
+  profileSaveQueue = profileSaveQueue.catch(() => {})
+    .then(() => applyStickMenuSelection());
   return profileSaveQueue;
 }
 

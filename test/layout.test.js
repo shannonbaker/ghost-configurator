@@ -77,7 +77,7 @@ test("layout editor exposes built-in resize and anchor controls", async () => {
   assert.match(app, /numberValue\("ahiStale", 1200, 10000\)/);
   assert.match(app, /numberValue\("sticksStale", 1200, 10000\)/);
   assert.match(html, /styles\.css\?v=38/);
-  assert.match(html, /app\.js\?v=52/);
+  assert.match(html, /app\.js\?v=53/);
 });
 
 test("completed drag and resize operations automatically persist layout", async () => {
