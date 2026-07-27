@@ -23,9 +23,16 @@ export class SerialSession extends EventTarget {
     }
     this.port = await navigator.serial.requestPort();
     await this.port.open({ baudRate: 115200, bufferSize: 4096 });
+    // STM32 USB CDC may accept the open before its MSP endpoint is ready.
+    // Assert DTR as desktop FC configurators do, begin consuming input, then
+    // allow the endpoint to settle before the first identification request.
+    if (this.port.setSignals) {
+      await this.port.setSignals({ dataTerminalReady: true }).catch(() => {});
+    }
     this.closing = false;
     this.writer = this.port.writable.getWriter();
     this.readTask = this.readLoop();
+    await delay(500);
   }
 
   async readLoop() {
