@@ -32,6 +32,7 @@ test("catalog exposes a valid rotating-logo package", async () => {
   ));
   assert.equal(catalog.schemaVersion, 1);
   assert.deepEqual(catalog.manifests, [
+    "./manifests/rc_menu.widget.ini",
     "./manifests/compass.widget.ini",
     "./manifests/rotating_logo.widget.ini",
     "./manifests/link_status.widget.ini",
