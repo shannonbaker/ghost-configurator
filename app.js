@@ -833,6 +833,14 @@ function attachStickMenuToggle(definition, key, option, label) {
   toggle.disabled = !policy.allowed;
   toggle.dataset.stickMenuWidget = definition.widget.id;
   toggle.dataset.stickMenuOption = key;
+  toggle.addEventListener("change", () => {
+    if (!profileAvailable()) {
+      setStatus("Connect the VRX before changing stick-menu selections.", "bad");
+      return;
+    }
+    setStatus("Saving stick-menu selection to the VRX...");
+    queueProfileSave();
+  });
   menuLabel.append(toggle, " Stick menu");
   row.append(menuLabel);
   definition.menuControls.set(key, toggle);
