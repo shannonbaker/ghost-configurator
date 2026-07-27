@@ -809,11 +809,17 @@ function parseWidgetManifest(text, source) {
 }
 
 function stickMenuPolicy(option) {
-  const policy = String(option.stick_menu ?? "never").toLowerCase();
-  return {
-    allowed: policy === "default" || policy === "optional",
-    selectedByDefault: policy === "default",
-  };
+  const declared = option.stick_menu;
+  const policy = String(declared ?? "").toLowerCase();
+  if (policy === "default" || policy === "optional" || policy === "never") {
+    return {
+      allowed: policy === "default" || policy === "optional",
+      selectedByDefault: policy === "default",
+    };
+  }
+  const configuratorOnly = option.role === "visible" ||
+    option.type === "field" || option.type === "string";
+  return { allowed: !configuratorOnly, selectedByDefault: false };
 }
 
 function attachStickMenuToggle(definition, key, option, label) {
@@ -1031,7 +1037,7 @@ function renderManifestWidget(parsed) {
 async function loadWidgetManifests() {
   try {
     const catalogUrl = new URL("./widgets/catalog.json", location.href);
-    const response = await fetch(catalogUrl);
+    const response = await fetch(catalogUrl, { cache: "no-store" });
     if (!response.ok) throw new Error(`Widget catalog HTTP ${response.status}`);
     const catalog = await response.json();
     if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.manifests)) {
@@ -1039,7 +1045,7 @@ async function loadWidgetManifests() {
     }
     const parsed = await Promise.all(catalog.manifests.map(async (path) => {
       const url = new URL(path, catalogUrl);
-      const manifestResponse = await fetch(url);
+      const manifestResponse = await fetch(url, { cache: "no-store" });
       if (!manifestResponse.ok) throw new Error(`${path}: HTTP ${manifestResponse.status}`);
       return parseWidgetManifest(await manifestResponse.text(), path);
     }));
