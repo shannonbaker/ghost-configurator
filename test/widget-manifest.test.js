@@ -32,6 +32,9 @@ test("catalog exposes a valid rotating-logo package", async () => {
   ));
   assert.equal(catalog.schemaVersion, 1);
   assert.deepEqual(catalog.manifests, [
+    "./manifests/ahi.widget.ini",
+    "./manifests/sticks.widget.ini",
+    "./manifests/status.widget.ini",
     "./manifests/rc_menu.widget.ini",
     "./manifests/compass.widget.ini",
     "./manifests/rotating_logo.widget.ini",
@@ -217,4 +220,43 @@ test("widget binary is constrained to the managed Goggles X directory", async ()
     sections.get("widget").binary,
     /^\/record\/GHOST\/gogglesx\/bin\/ghost_widget_[A-Za-z0-9_-]+$/,
   );
+});
+
+test("every user-facing option declares its RC stick-menu policy", async () => {
+  const catalog = JSON.parse(await readFile(
+    new URL("../widgets/catalog.json", import.meta.url), "utf8",
+  ));
+  const policies = new Set(["default", "optional", "never"]);
+  for (const path of catalog.manifests) {
+    const sections = parseIni(await readFile(
+      new URL("../widgets/" + path.replace("./", ""), import.meta.url), "utf8",
+    ));
+    for (const [section, option] of sections) {
+      if (!section.startsWith("option.")) continue;
+      assert.ok(policies.has(option.stick_menu),
+        path + ": " + section + " has no valid stick_menu policy");
+      if (option.role === "visible" || option.type === "field" ||
+          option.type === "string") {
+        assert.equal(option.stick_menu, "never",
+          path + ": technical options must remain configurator-only");
+      }
+    }
+  }
+});
+
+test("built-in widget manifests bind stick-menu choices to existing controls", async () => {
+  for (const name of ["ahi", "sticks", "status"]) {
+    const sections = parseIni(await readFile(
+      new URL("../widgets/manifests/" + name + ".widget.ini", import.meta.url),
+      "utf8",
+    ));
+    assert.equal(sections.get("widget").builtin, "true");
+    const configurable = [...sections]
+      .filter(([section, option]) => section.startsWith("option.") &&
+        option.role !== "visible" && option.stick_menu !== "never");
+    assert.ok(configurable.length > 0);
+    for (const [section, option] of configurable) {
+      assert.ok(option.control, name + ": " + section + " has no control binding");
+    }
+  }
 });

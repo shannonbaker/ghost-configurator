@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=37">
+  <link rel="stylesheet" href="./styles.css?v=38">
 </head>
 <body>
   <main>
@@ -64,6 +64,7 @@
           <label>Maximum FPS<input id="ahiFps" type="number" min="1" max="60" value="30"></label>
           <label>Minimum data rate<input id="ahiMinimumDataHz" type="number" min="1" max="1000" value="20"></label>
           <label>Preferred data rate<input id="ahiDataHz" type="number" min="1" max="1000" value="30"></label>
+          <label>Stale timeout (ms)<input id="ahiStale" type="number" min="1200" max="10000" value="2500"></label>
           <label class="check"><input id="ahiReversePitch" type="checkbox"> Reverse pitch</label>
           <label class="check"><input id="ahiReverseRoll" type="checkbox"> Reverse roll</label>
           </div>
@@ -78,6 +79,11 @@
           <label>Maximum FPS<input id="sticksFps" type="number" min="1" max="60" value="30"></label>
           <label>Minimum data rate<input id="sticksMinimumDataHz" type="number" min="1" max="1000" value="10"></label>
           <label>Preferred data rate<input id="sticksDataHz" type="number" min="1" max="1000" value="20"></label>
+          <label>Stale timeout (ms)<input id="sticksStale" type="number" min="1200" max="10000" value="2500"></label>
+          <label class="check"><input id="sticksReverseRoll" type="checkbox"> Reverse roll</label>
+          <label class="check"><input id="sticksReversePitch" type="checkbox"> Reverse pitch</label>
+          <label class="check"><input id="sticksReverseYaw" type="checkbox"> Reverse yaw</label>
+          <label class="check"><input id="sticksReverseThrottle" type="checkbox"> Reverse throttle</label>
           </div>
         </fieldset>
         <fieldset class="widget-card collapsed" data-widget-card="status" data-widget-title="System status"><legend><label class="widget-enable"><input id="statusVisible" type="checkbox"> System status</label><span class="widget-summary">Disabled · 4 FPS</span><button type="button" class="widget-collapse-toggle" aria-expanded="false" aria-controls="statusCardBody" aria-label="Show System status settings"></button></legend>
@@ -117,6 +123,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=50"></script>
+  <script type="module" src="./app.js?v=51"></script>
 </body>
 </html>

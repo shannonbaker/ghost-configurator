@@ -35,6 +35,7 @@ let layoutDrag = null;
 let layoutResize = null;
 const anchoredLayoutWidgets = new Set();
 const manifestWidgets = new Map();
+const builtInMenuWidgets = new Map();
 const fieldDeadbands = new Map();
 let lastProfileSections = null;
 let vrxApi = null;
@@ -807,6 +808,49 @@ function parseWidgetManifest(text, source) {
   return { widget, options, dependencies, visibleKey: visible[0] };
 }
 
+function stickMenuPolicy(option) {
+  const policy = String(option.stick_menu ?? "never").toLowerCase();
+  return {
+    allowed: policy === "default" || policy === "optional",
+    selectedByDefault: policy === "default",
+  };
+}
+
+function attachStickMenuToggle(definition, key, option, label) {
+  const policy = stickMenuPolicy(option);
+  const row = document.createElement("div");
+  row.className = "widget-option-row";
+  label.parentNode.insertBefore(row, label);
+  row.append(label);
+  const menuLabel = document.createElement("label");
+  menuLabel.className = "stick-menu-choice";
+  menuLabel.title = policy.allowed
+    ? "Include this setting in the RC stick menu"
+    : "This setting is configurator-only";
+  const toggle = document.createElement("input");
+  toggle.type = "checkbox";
+  toggle.checked = policy.selectedByDefault;
+  toggle.disabled = !policy.allowed;
+  toggle.dataset.stickMenuWidget = definition.widget.id;
+  toggle.dataset.stickMenuOption = key;
+  menuLabel.append(toggle, " Stick menu");
+  row.append(menuLabel);
+  definition.menuControls.set(key, toggle);
+}
+
+function bindBuiltInMenuWidget(parsed) {
+  const definition = { ...parsed, controls: new Map(), menuControls: new Map() };
+  for (const [key, option] of definition.options) {
+    if (key === definition.visibleKey || option.hidden === "true") continue;
+    const control = elements[option.control];
+    const label = control?.closest("label");
+    if (!control || !label) continue;
+    definition.controls.set(key, control);
+    attachStickMenuToggle(definition, key, option, label);
+  }
+  builtInMenuWidgets.set(definition.widget.id, definition);
+}
+
 function createManifestControl(definition, key, option) {
   const input = document.createElement(option.type === "select" ? "select" : "input");
   input.dataset.manifestWidget = definition.widget.id;
@@ -889,7 +933,9 @@ function attachManifestPreview(definition) {
 }
 
 function renderManifestWidget(parsed) {
-  const definition = { ...parsed, controls: new Map(), preview: null };
+  const definition = {
+    ...parsed, controls: new Map(), menuControls: new Map(), preview: null,
+  };
   const fieldset = document.createElement("fieldset");
   fieldset.className = "widget-card collapsed";
   fieldset.dataset.widgetCard = `manifest:${definition.widget.id}`;
@@ -944,6 +990,7 @@ function renderManifestWidget(parsed) {
     if (option.type === "boolean") label.className = "check";
     label.append(control, ` ${option.label ?? key}`);
     body.append(label);
+    attachStickMenuToggle(definition, key, option, label);
     control.addEventListener("input", refreshLayout);
     control.addEventListener("change", () => {
       refreshLayout();
@@ -989,7 +1036,10 @@ async function loadWidgetManifests() {
       return parseWidgetManifest(await manifestResponse.text(), path);
     }));
     parsed.sort((a, b) => Number(a.widget.order ?? 100) - Number(b.widget.order ?? 100));
-    for (const manifest of parsed) renderManifestWidget(manifest);
+    for (const manifest of parsed) {
+      if (truthy(manifest.widget.builtin)) bindBuiltInMenuWidget(manifest);
+      else renderManifestWidget(manifest);
+    }
     applyVrxInventory();
     refreshLayout();
   } catch (error) {
@@ -1050,6 +1100,30 @@ async function connectVrx() {
 const truthy = (value) => /^(1|true|yes|on)$/i.test(value ?? "");
 function setValue(id, value) { if (value !== undefined) elements[id].value = value; }
 
+function stickMenuDefinitions() {
+  return [...builtInMenuWidgets.values(), ...manifestWidgets.values()];
+}
+
+function populateStickMenuProfiles(sections) {
+  const selection = sections.get("stick_menu");
+  for (const definition of stickMenuDefinitions()) {
+    const stored = selection &&
+      Object.prototype.hasOwnProperty.call(selection, definition.widget.section);
+    const selected = new Set(stored
+      ? String(selection[definition.widget.section]).split(",")
+        .map((key) => key.trim()).filter(Boolean)
+      : []);
+    for (const [key, option] of definition.options) {
+      const toggle = definition.menuControls.get(key);
+      if (!toggle) continue;
+      const policy = stickMenuPolicy(option);
+      toggle.checked = policy.allowed &&
+        (stored ? selected.has(key) : policy.selectedByDefault);
+      toggle.disabled = !policy.allowed;
+    }
+  }
+}
+
 function populateManifestProfiles(sections) {
   for (const definition of manifestWidgets.values()) {
     const profile = sections.get(definition.widget.section);
@@ -1060,6 +1134,7 @@ function populateManifestProfiles(sections) {
       else if (value !== undefined) control.value = value;
     }
   }
+  populateStickMenuProfiles(sections);
 }
 
 function populateProfile(text) {
@@ -1088,6 +1163,7 @@ function populateProfile(text) {
     setValue("ahiFps", ahi.max_fps);
     setValue("ahiMinimumDataHz", ahi.minimum_data_hz ?? "20");
     setValue("ahiDataHz", ahi.data_hz ?? "30");
+    setValue("ahiStale", ahi.stale_timeout_ms ?? "2500");
     elements.ahiReversePitch.checked = truthy(ahi.reverse_pitch);
     elements.ahiReverseRoll.checked = truthy(ahi.reverse_roll);
   }
@@ -1101,6 +1177,11 @@ function populateProfile(text) {
     setValue("sticksFps", sticks.max_fps);
     setValue("sticksMinimumDataHz", sticks.minimum_data_hz ?? "10");
     setValue("sticksDataHz", sticks.data_hz ?? "20");
+    setValue("sticksStale", sticks.stale_timeout_ms ?? "2500");
+    elements.sticksReverseRoll.checked = truthy(sticks.reverse_roll);
+    elements.sticksReversePitch.checked = truthy(sticks.reverse_pitch);
+    elements.sticksReverseYaw.checked = truthy(sticks.reverse_yaw);
+    elements.sticksReverseThrottle.checked = truthy(sticks.reverse_throttle);
   }
   const status = sections.get("status.0");
   if (status) {
@@ -1196,17 +1277,18 @@ function buildProfile() {
     `max_fps=${numberValue("ahiFps", 1, 60)}`,
     `minimum_data_hz=${numberValue("ahiMinimumDataHz", 1, 1000)}`,
     `data_hz=${numberValue("ahiDataHz", 1, 1000)}`,
-    "stale_timeout_ms=2500", "", "[sticks.0]",
+    `stale_timeout_ms=${numberValue("ahiStale", 1200, 10000)}`, "", "[sticks.0]",
     `mode=${numberValue("sticksMode", 1, 2)}`, `visible=${elements.sticksVisible.checked}`,
     `roll_field=${fieldName("sticksRoll")}`, `pitch_field=${fieldName("sticksPitch")}`,
     `yaw_field=${fieldName("sticksYaw")}`, `throttle_field=${fieldName("sticksThrottle")}`,
-    "reverse_roll=false", "reverse_pitch=false", "reverse_yaw=false", "reverse_throttle=false",
+    `reverse_roll=${elements.sticksReverseRoll.checked}`, `reverse_pitch=${elements.sticksReversePitch.checked}`,
+    `reverse_yaw=${elements.sticksReverseYaw.checked}`, `reverse_throttle=${elements.sticksReverseThrottle.checked}`,
     `position_x=${numberValue("sticksX", -4096, 4096)}`, `position_y=${numberValue("sticksY", -4096, 4096)}`,
     `size_percent=${numberValue("sticksSize", 25, 200)}`,
     `max_fps=${numberValue("sticksFps", 1, 60)}`,
     `minimum_data_hz=${numberValue("sticksMinimumDataHz", 1, 1000)}`,
     `data_hz=${numberValue("sticksDataHz", 1, 1000)}`,
-    "stale_timeout_ms=2500", "", "[status.0]",
+    `stale_timeout_ms=${numberValue("sticksStale", 1200, 10000)}`, "", "[status.0]",
     `visible=${elements.statusVisible.checked}`,
     `show_vtx_temperature=${elements.statusVtxTemperature.checked}`,
     `show_goggles_temperature=${elements.statusGogglesTemperature.checked}`,
@@ -1226,9 +1308,24 @@ function buildProfile() {
     );
     if (!values) continue;
     lines.push(`[${definition.widget.section}]`);
-    for (const [key, value] of values) lines.push(`${key}=${value}`);
+    for (const [key, value] of values) lines.push(key + "=" + value);
     lines.push("");
   }
+  const installedWidgets = vrxInventory
+    ? new Set(vrxInventory.widgets.map((widget) => widget.id))
+    : null;
+  const stickMenuLines = [];
+  for (const definition of stickMenuDefinitions()) {
+    if (installedWidgets && !installedWidgets.has(definition.widget.id)) continue;
+    const selected = [];
+    for (const [key, option] of definition.options) {
+      const policy = stickMenuPolicy(option);
+      const toggle = definition.menuControls.get(key);
+      if (policy.allowed && toggle?.checked) selected.push(key);
+    }
+    stickMenuLines.push(definition.widget.section + "=" + selected.join(","));
+  }
+  if (stickMenuLines.length) lines.push("[stick_menu]", ...stickMenuLines, "");
   for (const row of elements.fields.querySelectorAll("tr[data-id]")) {
     if (!row.querySelector(".enabled")?.checked) continue;
     const fieldId = Number(row.dataset.id);
