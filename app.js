@@ -1426,6 +1426,7 @@ function populateProfile(text) {
     setValue("ahiStale", ahi.stale_timeout_ms ?? "2500");
     elements.ahiReversePitch.checked = truthy(ahi.reverse_pitch);
     elements.ahiReverseRoll.checked = truthy(ahi.reverse_roll);
+    elements.ahiPrediction.checked = ahi.prediction === undefined || truthy(ahi.prediction);
     elements.ahiTestMode.checked = truthy(ahi.test_mode);
   }
   const sticks = sections.get("sticks.0");
@@ -1537,6 +1538,7 @@ function buildProfile() {
     `line_width=${numberValue("ahiLineWidth", 1, 12)}`,
     `visible=${elements.ahiVisible.checked}`, `reverse_pitch=${elements.ahiReversePitch.checked}`,
     `reverse_roll=${elements.ahiReverseRoll.checked}`,
+    `prediction=${elements.ahiPrediction.checked}`,
     `test_mode=${elements.ahiTestMode.checked}`,
     `smoothing=${numberValue("ahiSmoothing", 0, 10)}`,
     `max_fps=${numberValue("ahiFps", 1, 60)}`,
