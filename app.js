@@ -74,13 +74,19 @@ function widgetLogicalRect(widget) {
       Number(definition.controls.get(key)?.value ?? fallback);
     const automaticSize = definition.widget.id === "ghost_dp_stats"
       ? ghostStatsPreviewSize(definition) : null;
+    const placementScale = definition.widget.placement_scale
+      ? value(definition.widget.placement_scale, 100) / 100 : 1;
+    const placementWidth = Number(
+      definition.widget.placement_base_width ?? 100) * placementScale;
+    const placementHeight = Number(
+      definition.widget.placement_base_height ?? 100) * placementScale;
     return {
       x: value(definition.widget.geometry_x, 0),
       y: value(definition.widget.geometry_y, 0),
       width: value(definition.widget.geometry_width,
-        automaticSize?.width ?? Number(definition.widget.placement_base_width ?? 100)),
+        automaticSize?.width ?? placementWidth),
       height: value(definition.widget.geometry_height,
-        automaticSize?.height ?? Number(definition.widget.placement_base_height ?? 100)),
+        automaticSize?.height ?? placementHeight),
     };
   }
   if (widget === "ahi") {
