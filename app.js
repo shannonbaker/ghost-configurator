@@ -402,6 +402,32 @@ function resizableDefinition(widget) {
   if (resizableWidgets[widget]) return resizableWidgets[widget];
   if (!widget.startsWith("manifest:")) return null;
   const definition = manifestWidgets.get(widget.slice(9));
+  const scaleWidthKey = definition?.widget.size_width;
+  const scaleHeightKey = definition?.widget.size_height;
+  if (scaleWidthKey && scaleHeightKey) {
+    const scaleOption = definition.options.get(scaleWidthKey);
+    const baseWidth = Number(definition.widget.placement_base_width ?? 100);
+    const baseHeight = Number(definition.widget.placement_base_height ?? 100);
+    const minimumScale = Number(scaleOption?.min ?? 25) / 100;
+    return {
+      lockAspect: true,
+      uniformScale: true,
+      aspectRatio: baseWidth / baseHeight,
+      minimumWidth: baseWidth * minimumScale,
+      minimumHeight: baseHeight * minimumScale,
+      writeSize(width, _height, anchorX, anchorY) {
+        const percent = Math.round(width / baseWidth * 100);
+        definition.controls.get(scaleWidthKey).value = percent;
+        if (scaleHeightKey !== scaleWidthKey) {
+          definition.controls.get(scaleHeightKey).value = percent;
+        }
+        definition.controls.get(definition.widget.geometry_x).value =
+          Math.round(anchorX);
+        definition.controls.get(definition.widget.geometry_y).value =
+          Math.round(anchorY);
+      },
+    };
+  }
   if (!definition?.widget.geometry_width ||
       !definition?.widget.geometry_height) return null;
   const widthOption = definition.options.get(definition.widget.geometry_width);
@@ -1121,7 +1147,8 @@ function attachManifestPreview(definition) {
   label.textContent = definition.widget.preview === "logo"
     ? "G" : definition.widget.title;
   preview.append(label);
-  if (definition.widget.geometry_width && definition.widget.geometry_height) {
+  if ((definition.widget.geometry_width && definition.widget.geometry_height) ||
+      (definition.widget.size_width && definition.widget.size_height)) {
     const anchor = document.createElement("button");
     anchor.type = "button";
     anchor.className = "layout-anchor-toggle";
@@ -1972,5 +1999,5 @@ renderVideoSystemFields();
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=76").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=77").catch(() => {});
 }
