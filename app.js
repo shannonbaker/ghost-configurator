@@ -4,6 +4,7 @@ import { GhostMspApi } from "./ghost-api.js";
 import {
   GhostDpApi, deadbandPresentation, displayDeadband, rawDeadband,
 } from "./ghost-dp-api.js";
+import { isNumericField, thresholdPresentation, validateColourPolicy } from "./field-colour.js";
 import {
   compactManifestOptions, parseManifestDependencies,
   resolveManifestDependencies,
@@ -37,6 +38,23 @@ const anchoredLayoutWidgets = new Set();
 const manifestWidgets = new Map();
 const builtInMenuWidgets = new Map();
 const fieldDeadbands = new Map();
+const fieldColourPolicies = new Map();
+const videoColourPolicies = new Map();
+const VIDEO_SYSTEM_FIELDS = [
+  { id: 65001, key: "vtx_temperature", name: "VTX temperature", source: "VTX", unit: "\u00b0C", step: 0.1, direction: "high" },
+  { id: 65002, key: "vrx_temperature", name: "VRX temperature", source: "VRX", unit: "\u00b0C", step: 0.1, direction: "high" },
+  { id: 65003, key: "vtx_voltage", name: "VTX voltage", source: "VTX", unit: "V", step: 0.01, direction: "low" },
+  { id: 65004, key: "vrx_voltage", name: "VRX voltage", source: "VRX", unit: "V", step: 0.01, direction: "low" },
+  { id: 65005, key: "vtx_rf_power", name: "VTX RF power", source: "VTX", unit: "dBm", step: 1, direction: "low" },
+  { id: 65006, key: "vrx_rf_power", name: "VRX RF power", source: "VRX", unit: "dBm", step: 1, direction: "low" },
+  { id: 65007, key: "vtx_snr", name: "VTX SNR", source: "VTX", unit: "SNR", step: 0.1, direction: "low" },
+  { id: 65008, key: "vrx_snr", name: "VRX SNR", source: "VRX", unit: "SNR", step: 0.1, direction: "low" },
+  { id: 65009, key: "bitrate", name: "Link bitrate", source: "Video link", unit: "Mbps", step: 0.1, direction: "low" },
+  { id: 65010, key: "latency", name: "Link latency", source: "Video link", unit: "ms", step: 0.1, direction: "high" },
+  { id: 65011, key: "distance", name: "Link distance", source: "Video link", unit: "m", step: 1, direction: "high" },
+  { id: 65012, key: "signal", name: "Signal bars", source: "Video link", unit: "bars", step: 1, direction: "low" },
+];
+
 let lastProfileSections = null;
 let vrxApi = null;
 let vrxInventory = null;
@@ -54,11 +72,15 @@ function widgetLogicalRect(widget) {
     if (!definition) return { x: 0, y: 0, width: 1, height: 1 };
     const value = (key, fallback) =>
       Number(definition.controls.get(key)?.value ?? fallback);
+    const automaticSize = definition.widget.id === "ghost_dp_stats"
+      ? ghostStatsPreviewSize(definition) : null;
     return {
       x: value(definition.widget.geometry_x, 0),
       y: value(definition.widget.geometry_y, 0),
-      width: value(definition.widget.geometry_width, 100),
-      height: value(definition.widget.geometry_height, 100),
+      width: value(definition.widget.geometry_width,
+        automaticSize?.width ?? Number(definition.widget.placement_base_width ?? 100)),
+      height: value(definition.widget.geometry_height,
+        automaticSize?.height ?? Number(definition.widget.placement_base_height ?? 100)),
     };
   }
   if (widget === "ahi") {
@@ -85,6 +107,39 @@ function widgetLogicalRect(widget) {
     showVtxVoltage: elements.statusVtxVoltage.checked,
     showVrxVoltage: elements.statusGogglesVoltage.checked,
   });
+}
+
+function ghostStatsPreviewSize(definition) {
+  const textPx = Math.max(10, Math.min(36,
+    Number(definition.controls.get("text_size_px")?.value ?? 17)));
+  const activeRows = [...elements.fields.querySelectorAll("tr[data-name]")]
+    .filter((row) => row.querySelector(".enabled")?.checked);
+  const fieldNames = activeRows.length
+    ? activeRows.map((row) => row.dataset.name)
+    : [...configured.values()].map((field) => field.name).filter(Boolean);
+  const canvas = ghostStatsPreviewSize.canvas ??=
+    document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  context.font = `${textPx}px sans-serif`;
+  const measure = (text) => Math.ceil(context.measureText(text).width);
+  const summaryLines = [
+    "STREAM ON   FIELD RX 000.0 kbps",
+    "GHOST RX 000.0   TX 000.0 kbps",
+    "DISPLAYPORT RX 000.0   TX 000.0   TOTAL 000.0 kbps",
+    "RESERVED 000.0   LIMIT 000.0 kbps   100%",
+    `FIELDS ${fieldNames.length}   PKT 000000   ERR 000   RENEW 0000`,
+  ];
+  const plainWidth = Math.max(...summaryLines.map(measure));
+  const firstColumn = Math.max(measure("FIELD"),
+    ...fieldNames.map((name) => measure(name)));
+  const secondColumn = measure("000.0 Hz");
+  const thirdColumn = measure("REQUEST");
+  const width = Math.max(120, Math.min(1900,
+    Math.max(plainWidth, firstColumn + secondColumn + thirdColumn + 36) + 24));
+  const rowHeight = Math.ceil(textPx * 1.2) + 5;
+  const height = Math.max(rowHeight + 16, Math.min(1060,
+    (6 + fieldNames.length) * rowHeight + 16));
+  return { width, height };
 }
 
 function setWidgetLogicalPosition(widget, requestedX, requestedY, markDirty = true) {
@@ -541,33 +596,33 @@ function startStreamStats() {
 
 function renderFields() {
   elements.fields.replaceChildren();
+  const required = requiredWidgetFields();
   for (const capability of capabilities) {
     const current = configured.get(capability.name);
+    const isRequired = required.has(capability.name.toUpperCase());
     const defaultDeadband = /^RC(?:[1-9]|1[0-8])$/.test(capability.name)
       ? 3 : (["PITCH", "ROLL"].includes(capability.name) ? 2 : 0);
     const deadband = fieldDeadbands.has(capability.id)
       ? fieldDeadbands.get(capability.id) : defaultDeadband;
     const presentation = deadbandPresentation(capability);
+    const numeric = isNumericField(capability);
+    const colourPresentation = thresholdPresentation(capability);
+    const colourPolicy = fieldColourPolicies.get(capability.id) ?? {
+      enabled: false, direction: "low", green: NaN, amber: NaN, red: NaN,
+      flashOnRed: false,
+    };
+    const thresholdValue = (value) => Number.isFinite(value) ? String(value) : "";
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td><input class="enabled" type="checkbox" ${current ? "checked" : ""} aria-label="Enable ${capability.name}"></td>
-      <td><span class="field-name">${capability.name}</span><small>ID ${capability.id}</small></td>
-      <td><input class="rate" type="number" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}"><span>Hz</span></td>
+      <td><input class="enabled" type="checkbox" ${isRequired ? "checked" : ""} disabled aria-label="${capability.name} ${isRequired ? "required by an enabled widget" : "not required by enabled widgets"}" title="Controlled by enabled widgets"></td>
+      <td><span class="field-name">${capability.name}</span><small>ID ${capability.id}</small>${numeric ? '<button class="field-colour-toggle" type="button" aria-expanded="false">Colour thresholds</button>' : ""}</td>
+      <td><input class="rate" type="number" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}" disabled aria-label="${capability.name} widget-requested rate" title="Controlled by enabled widget requirements"><span>Hz</span></td>
       <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div><small>${deadband} raw</small></div></td>
       <td>${capability.maxHz} Hz</td>`;
     row.dataset.name = capability.name;
     row.dataset.id = capability.id;
     row.dataset.deadbandFactor = presentation.factor;
     row.dataset.deadbandDecimals = presentation.decimals;
-    const onCheckbox = row.querySelector(".enabled");
-    onCheckbox.addEventListener("change", () => {
-      if (!onCheckbox.checked && requiredWidgetFields().has(row.dataset.name.toUpperCase())) {
-        onCheckbox.checked = true;
-        setStatus(`${row.dataset.name} must remain On while it is required by an enabled widget.`, "neutral");
-      }
-      updateSummary();
-    });
-    row.querySelector(".rate").addEventListener("change", updateSummary);
     const deadbandInput = row.querySelector(".deadband");
     const rawReadout = row.querySelector(".deadband-control small");
     const updateRawReadout = () => {
@@ -586,10 +641,61 @@ function renderFields() {
       if (profileAvailable()) queueProfileSave();
     });
     elements.fields.append(row);
+
+    if (numeric) {
+      const colourRow = document.createElement("tr");
+      colourRow.className = "field-colour-row";
+      colourRow.hidden = true;
+      colourRow.innerHTML = `<td></td><td colspan="4"><div class="field-colour-controls">
+        <label class="check"><input class="colour-enabled" type="checkbox" ${colourPolicy.enabled ? "checked" : ""}> Enable colour thresholds</label>
+        <label>Direction<select class="colour-direction"><option value="low" ${colourPolicy.direction === "low" ? "selected" : ""}>Low is bad</option><option value="high" ${colourPolicy.direction === "high" ? "selected" : ""}>High is bad</option></select></label>
+        <label class="threshold green">Green<input class="colour-green" type="number" step="${colourPresentation.step}" value="${thresholdValue(colourPolicy.green)}"><span>${colourPresentation.unit}</span></label>
+        <label class="threshold amber">Amber<input class="colour-amber" type="number" step="${colourPresentation.step}" value="${thresholdValue(colourPolicy.amber)}"><span>${colourPresentation.unit}</span></label>
+        <label class="threshold red">Red<input class="colour-red" type="number" step="${colourPresentation.step}" value="${thresholdValue(colourPolicy.red)}"><span>${colourPresentation.unit}</span></label>
+        <label class="check"><input class="colour-flash-red" type="checkbox" ${colourPolicy.flashOnRed ? "checked" : ""}> Flash on red (500 ms)</label>
+        <small class="colour-policy-message"></small>
+      </div></td>`;
+      row._colourRow = colourRow;
+      const toggle = row.querySelector(".field-colour-toggle");
+      toggle.addEventListener("click", () => {
+        colourRow.hidden = !colourRow.hidden;
+        toggle.setAttribute("aria-expanded", String(!colourRow.hidden));
+      });
+      const enabled = colourRow.querySelector(".colour-enabled");
+      const direction = colourRow.querySelector(".colour-direction");
+      const green = colourRow.querySelector(".colour-green");
+      const amber = colourRow.querySelector(".colour-amber");
+      const red = colourRow.querySelector(".colour-red");
+      const flashOnRed = colourRow.querySelector(".colour-flash-red");
+      const message = colourRow.querySelector(".colour-policy-message");
+      const thresholdNumber = (input) => input.value.trim() === "" ? NaN : Number(input.value);
+      const readPolicy = () => ({ enabled: enabled.checked, direction: direction.value,
+        green: thresholdNumber(green), amber: thresholdNumber(amber),
+        red: thresholdNumber(red), flashOnRed: flashOnRed.checked });
+      const validate = () => {
+        const policy = readPolicy();
+        const result = validateColourPolicy(policy);
+        for (const input of [green, amber, red]) input.setCustomValidity(result.message);
+        message.textContent = result.message;
+        return result.valid ? policy : null;
+      };
+      const save = () => {
+        const policy = validate();
+        if (!policy) return;
+        if (policy.enabled) fieldColourPolicies.set(capability.id, policy);
+        else fieldColourPolicies.delete(capability.id);
+        if (profileAvailable()) queueProfileSave();
+      };
+      for (const control of [enabled, direction, green, amber, red, flashOnRed]) {
+        control.addEventListener("input", validate);
+        control.addEventListener("change", save);
+      }
+      validate();
+      elements.fields.append(colourRow);
+    }
   }
   enableRequiredWidgetFields();
 }
-
 function selectedFields() {
   return [...elements.fields.querySelectorAll("tr")]
     .filter((row) => row.querySelector(".enabled")?.checked)
@@ -602,14 +708,93 @@ function selectedFields() {
 
 function updateSummary() {
   const selected = selectedFields();
-  elements.selection.textContent = `${selected.length} field${selected.length === 1 ? "" : "s"} enabled`;
-  for (const row of elements.fields.querySelectorAll("tr")) {
+  elements.selection.textContent = `${selected.length} field${selected.length === 1 ? "" : "s"} required`;
+  for (const row of elements.fields.querySelectorAll("tr[data-id]")) {
     const onCheckbox = row.querySelector(".enabled");
-    row.classList.toggle("field-filtered",
-      Boolean(onCheckbox && elements.hideInactive.checked && !onCheckbox.checked));
+    const filtered = Boolean(onCheckbox && elements.hideInactive.checked && !onCheckbox.checked);
+    row.classList.toggle("field-filtered", filtered);
+    row._colourRow?.classList.toggle("field-filtered", filtered);
   }
 }
 
+function renderVideoSystemFields() {
+  elements.videoSystemFields.replaceChildren();
+  const thresholdValue = (value) => Number.isFinite(value) ? String(value) : "";
+  for (const field of VIDEO_SYSTEM_FIELDS) {
+    const policy = videoColourPolicies.get(field.key) ?? {
+      enabled: false, direction: field.direction,
+      green: NaN, amber: NaN, red: NaN,
+      flashOnRed: false,
+    };
+    const row = document.createElement("tr");
+    row.innerHTML = '<td><span class="field-name">' + field.name +
+      '</span><small>' + field.key + '</small></td><td>' + field.source +
+      '</td><td>' + field.unit +
+      '</td><td><button class="field-colour-toggle" type="button" aria-expanded="false">Colour thresholds</button></td>';
+    const colourRow = document.createElement("tr");
+    colourRow.className = "field-colour-row";
+    colourRow.hidden = true;
+    colourRow.innerHTML = '<td colspan="4"><div class="field-colour-controls">' +
+      '<label class="check"><input class="colour-enabled" type="checkbox"' +
+      (policy.enabled ? ' checked' : '') + '> Enable colour thresholds</label>' +
+      '<label>Direction<select class="colour-direction"><option value="low"' +
+      (policy.direction === "low" ? ' selected' : '') +
+      '>Low is bad</option><option value="high"' +
+      (policy.direction === "high" ? ' selected' : '') +
+      '>High is bad</option></select></label>' +
+      '<label class="threshold green">Green<input class="colour-green" type="number" step="' +
+      field.step + '" value="' + thresholdValue(policy.green) + '"><span>' +
+      field.unit + '</span></label>' +
+      '<label class="threshold amber">Amber<input class="colour-amber" type="number" step="' +
+      field.step + '" value="' + thresholdValue(policy.amber) + '"><span>' +
+      field.unit + '</span></label>' +
+      '<label class="threshold red">Red<input class="colour-red" type="number" step="' +
+      field.step + '" value="' + thresholdValue(policy.red) + '"><span>' +
+      field.unit + '</span></label>' +
+      '<label class="check"><input class="colour-flash-red" type="checkbox"' +
+      (policy.flashOnRed ? ' checked' : '') + '> Flash on red (500 ms)</label><small class="colour-policy-message"></small></div></td>';
+    const toggle = row.querySelector(".field-colour-toggle");
+    toggle.addEventListener("click", () => {
+      colourRow.hidden = !colourRow.hidden;
+      toggle.setAttribute("aria-expanded", String(!colourRow.hidden));
+    });
+    const enabled = colourRow.querySelector(".colour-enabled");
+    const direction = colourRow.querySelector(".colour-direction");
+    const green = colourRow.querySelector(".colour-green");
+    const amber = colourRow.querySelector(".colour-amber");
+    const red = colourRow.querySelector(".colour-red");
+    const flashOnRed = colourRow.querySelector(".colour-flash-red");
+    const message = colourRow.querySelector(".colour-policy-message");
+    const thresholdNumber = (input) =>
+      input.value.trim() === "" ? NaN : Number(input.value);
+    const readPolicy = () => ({
+      enabled: enabled.checked, direction: direction.value,
+      green: thresholdNumber(green), amber: thresholdNumber(amber),
+      red: thresholdNumber(red), flashOnRed: flashOnRed.checked,
+    });
+    const validate = () => {
+      const next = readPolicy();
+      const result = validateColourPolicy(next);
+      for (const input of [green, amber, red])
+        input.setCustomValidity(result.message);
+      message.textContent = result.message;
+      return result.valid ? next : null;
+    };
+    const save = () => {
+      const next = validate();
+      if (!next) return;
+      if (next.enabled) videoColourPolicies.set(field.key, next);
+      else videoColourPolicies.delete(field.key);
+      if (profileAvailable()) queueProfileSave();
+    };
+    for (const control of [enabled, direction, green, amber, red, flashOnRed]) {
+      control.addEventListener("input", validate);
+      control.addEventListener("change", save);
+    }
+    validate();
+    elements.videoSystemFields.append(row, colourRow);
+  }
+}
 function requiredWidgetFields() {
   const required = new Set();
   const add = (id) => {
@@ -629,7 +814,7 @@ function requiredWidgetFields() {
   for (const definition of manifestWidgets.values()) {
     if (!definition.visibleControl.checked) continue;
     for (const [key, option] of definition.options) {
-      if (option.type !== "field") continue;
+      if (option.type !== "field" || option.subscription === "runtime") continue;
       const raw = definition.controls.get(key)?.value.trim().toUpperCase();
       if (!raw) continue;
       const numericId = Number(raw);
@@ -654,10 +839,24 @@ function manifestRequiredFieldRates() {
     if (!Number.isFinite(numericRate) || numericRate <= 0) return;
     rates.set(name, Math.max(rates.get(name) ?? 0, numericRate));
   };
+  const setControlRate = (fieldControl, rateControl) => {
+    const name = elements[fieldControl].value.trim().toUpperCase();
+    if (name) setRate(name, elements[rateControl].value);
+  };
+  if (elements.ahiVisible.checked) {
+    setControlRate("ahiPitch", "ahiDataHz");
+    setControlRate("ahiRoll", "ahiDataHz");
+  }
+  if (elements.sticksVisible.checked) {
+    setControlRate("sticksRoll", "sticksDataHz");
+    setControlRate("sticksPitch", "sticksDataHz");
+    setControlRate("sticksYaw", "sticksDataHz");
+    setControlRate("sticksThrottle", "sticksDataHz");
+  }
   for (const definition of manifestWidgets.values()) {
     if (!definition.visibleControl.checked) continue;
     for (const [key, option] of definition.options) {
-      if (option.type !== "field" ||
+      if (option.type !== "field" || option.subscription === "runtime" ||
           (option.required_hz === undefined && option.default_hz === undefined)) continue;
       const raw = definition.controls.get(key)?.value.trim().toUpperCase();
       const numericId = Number(raw);
@@ -680,38 +879,46 @@ function enableRequiredWidgetFields(notify = false) {
   const required = requiredWidgetFields();
   const requestedRates = manifestRequiredFieldRates();
   const enabled = [];
+  const disabled = [];
   const available = new Set();
   for (const row of elements.fields.querySelectorAll("tr[data-name]")) {
     const name = row.dataset.name.toUpperCase();
     available.add(name);
     const onCheckbox = row.querySelector(".enabled");
-    if (required.has(name)) {
+    const shouldBeEnabled = required.has(name);
+    if (onCheckbox.checked !== shouldBeEnabled) {
+      onCheckbox.checked = shouldBeEnabled;
+      (shouldBeEnabled ? enabled : disabled).push(row.dataset.name);
+    }
+    onCheckbox.setAttribute("aria-label", `${row.dataset.name} ${shouldBeEnabled
+      ? "required by an enabled widget" : "not required by enabled widgets"}`);
+    if (shouldBeEnabled) {
       let changed = false;
-      if (!onCheckbox.checked) {
-        onCheckbox.checked = true;
-        changed = true;
-      }
       const requestedRate = requestedRates.get(name);
       if (requestedRate) {
         const rate = row.querySelector(".rate");
         const requiredRate = Math.min(requestedRate, Number(rate.max));
-        if (Number(rate.value) < requiredRate) {
+        if (Number(rate.value) !== requiredRate) {
           rate.value = requiredRate;
           changed = true;
         }
       }
-      if (changed) enabled.push(row.dataset.name);
+      if (changed && !enabled.includes(row.dataset.name)) enabled.push(row.dataset.name);
     }
   }
   updateSummary();
-  if (notify && enabled.length) {
-    setStatus(`Updated required field${enabled.length === 1 ? "" : "s"}: ${enabled.join(", ")}. Save widget & fields to persist.`, "good");
+  refreshLayout();
+  if (notify && (enabled.length || disabled.length)) {
+    const changes = [];
+    if (enabled.length) changes.push(`On: ${enabled.join(", ")}`);
+    if (disabled.length) changes.push(`Off: ${disabled.join(", ")}`);
+    setStatus(`Synchronized widget-required fields — ${changes.join(" · ")}. Save widget & fields to persist.`, "good");
   }
   const unavailable = [...required].filter((name) => !available.has(name));
   if (notify && capabilities.length && unavailable.length) {
     setStatus(`Required field${unavailable.length === 1 ? "" : "s"} unavailable: ${unavailable.join(", ")}.`, "bad");
   }
-  return enabled;
+  return { enabled, disabled };
 }
 
 async function connect() {
@@ -1002,7 +1209,7 @@ function renderManifestWidget(parsed) {
     }
     const label = document.createElement("label");
     if (option.type === "boolean") label.className = "check";
-    label.append(control, ` ${option.label ?? key}`);
+    label.append(control, ` ${option.label ?? key}${option.unit ? ` (${option.unit})` : ""}`);
     body.append(label);
     attachStickMenuToggle(definition, key, option, label);
     control.addEventListener("input", refreshLayout);
@@ -1027,8 +1234,7 @@ function renderManifestWidget(parsed) {
   elements.manifestWidgets.append(fieldset);
   manifestWidgets.set(definition.widget.id, definition);
   initializeWidgetCard(fieldset);
-  if (definition.widget.geometry_x && definition.widget.geometry_y &&
-      definition.widget.geometry_width && definition.widget.geometry_height) {
+  if (definition.widget.geometry_x && definition.widget.geometry_y) {
     attachManifestPreview(definition);
   }
   if (lastProfileSections) populateManifestProfiles(lastProfileSections);
@@ -1138,12 +1344,21 @@ function populateStickMenuProfiles(sections) {
   }
 }
 
+function profileOptionValue(value, option) {
+  if (option.transform !== "percent_to_alpha") return value;
+  const number = Number(value);
+  if (Number.isFinite(number) && number > 100 && number <= 255) {
+    return String(Math.round(number * 100 / 255));
+  }
+  return value;
+}
+
 function populateManifestProfiles(sections) {
   for (const definition of manifestWidgets.values()) {
     const profile = sections.get(definition.widget.section);
     for (const [key, option] of definition.options) {
       const control = definition.controls.get(key);
-      const value = profile?.[key] ?? option.default;
+      const value = profileOptionValue(profile?.[key] ?? option.default, option);
       if (control.type === "checkbox") control.checked = truthy(value);
       else if (value !== undefined) control.value = value;
     }
@@ -1155,13 +1370,43 @@ function populateProfile(text) {
   const sections = parseIni(text);
   lastProfileSections = sections;
   fieldDeadbands.clear();
+  fieldColourPolicies.clear();
+  videoColourPolicies.clear();
   for (const [section, values] of sections) {
     const match = /^field_policy\.(\d+)$/.exec(section);
     if (!match) continue;
     const fieldId = Number(match[1]);
+    const hasColour = values.colour_enabled !== undefined ||
+      values.green_threshold !== undefined || values.amber_threshold !== undefined ||
+      values.red_threshold !== undefined;
+    const videoField = VIDEO_SYSTEM_FIELDS.find(({ id }) => id === fieldId);
+    if (videoField) {
+      if (hasColour) {
+        videoColourPolicies.set(videoField.key, {
+          enabled: truthy(values.colour_enabled),
+          direction: values.colour_direction === "high" ? "high" : "low",
+          green: Number(values.green_threshold),
+          amber: Number(values.amber_threshold),
+          red: Number(values.red_threshold),
+          flashOnRed: truthy(values.flash_on_red),
+        });
+      }
+      continue;
+    }
+
     const deadband = Number(values.deadband_raw ?? 0);
     if (fieldId > 0 && Number.isInteger(deadband) && deadband >= 0)
       fieldDeadbands.set(fieldId, deadband);
+    if (fieldId > 0 && hasColour) {
+      fieldColourPolicies.set(fieldId, {
+        enabled: truthy(values.colour_enabled),
+        direction: values.colour_direction === "high" ? "high" : "low",
+        green: Number(values.green_threshold),
+        amber: Number(values.amber_threshold),
+        red: Number(values.red_threshold),
+        flashOnRed: truthy(values.flash_on_red),
+      });
+    }
   }
   const parsedReloadToken = Number(sections.get("display")?.r ?? 0);
   widgetReloadToken = Number.isInteger(parsedReloadToken) &&
@@ -1172,7 +1417,8 @@ function populateProfile(text) {
     setValue("ahiPitch", ahi.pitch_field); setValue("ahiRoll", ahi.roll_field);
     setValue("ahiX", ahi.center_x); setValue("ahiY", ahi.center_y);
     setValue("ahiWidth", ahi.width); setValue("ahiHeight", ahi.height ?? "5000");
-    setValue("ahiPitchScale", ahi.pitch_scale ?? "1.0");
+    setValue("ahiPitchScale", ahi.vertical_range_degrees ?? "90");
+    setValue("ahiLineWidth", ahi.line_width ?? "3");
     setValue("ahiSmoothing", ahi.smoothing);
     setValue("ahiFps", ahi.max_fps);
     setValue("ahiMinimumDataHz", ahi.minimum_data_hz ?? "20");
@@ -1180,6 +1426,7 @@ function populateProfile(text) {
     setValue("ahiStale", ahi.stale_timeout_ms ?? "2500");
     elements.ahiReversePitch.checked = truthy(ahi.reverse_pitch);
     elements.ahiReverseRoll.checked = truthy(ahi.reverse_roll);
+    elements.ahiTestMode.checked = truthy(ahi.test_mode);
   }
   const sticks = sections.get("sticks.0");
   if (sticks) {
@@ -1188,6 +1435,7 @@ function populateProfile(text) {
     setValue("sticksPitch", sticks.pitch_field); setValue("sticksYaw", sticks.yaw_field);
     setValue("sticksThrottle", sticks.throttle_field); setValue("sticksX", sticks.position_x);
     setValue("sticksY", sticks.position_y); setValue("sticksSize", sticks.size_percent);
+    setValue("sticksBackgroundOpacity", sticks.background_opacity ?? "50");
     setValue("sticksFps", sticks.max_fps);
     setValue("sticksMinimumDataHz", sticks.minimum_data_hz ?? "10");
     setValue("sticksDataHz", sticks.data_hz ?? "20");
@@ -1206,11 +1454,12 @@ function populateProfile(text) {
     elements.statusGogglesVoltage.checked = truthy(status.show_goggles_voltage);
     setValue("statusX", status.position_x); setValue("statusY", status.position_y);
     setValue("statusSize", status.size_percent); setValue("statusFps", status.max_fps);
-    setValue("statusOpacity", status.background_opacity);
+    setValue("statusOpacity", profileOptionValue(status.background_opacity, { transform: "percent_to_alpha" }));
     setValue("statusStale", status.stale_timeout_ms);
   }
   populateManifestProfiles(sections);
   if (capabilities.length) renderFields();
+  renderVideoSystemFields();
   enableRequiredWidgetFields();
   refreshLayout();
 }
@@ -1284,9 +1533,11 @@ function buildProfile() {
     `center_x=${numberValue("ahiX", 0, 10000)}`, `center_y=${numberValue("ahiY", 0, 10000)}`,
     `width=${numberValue("ahiWidth", 1, 10000)}`,
     `height=${numberValue("ahiHeight", 1, 10000)}`,
-    `pitch_scale=${numberValue("ahiPitchScale", 0.1, 10)}`,
+    `vertical_range_degrees=${numberValue("ahiPitchScale", 20, 180)}`,
+    `line_width=${numberValue("ahiLineWidth", 1, 12)}`,
     `visible=${elements.ahiVisible.checked}`, `reverse_pitch=${elements.ahiReversePitch.checked}`,
     `reverse_roll=${elements.ahiReverseRoll.checked}`,
+    `test_mode=${elements.ahiTestMode.checked}`,
     `smoothing=${numberValue("ahiSmoothing", 0, 10)}`,
     `max_fps=${numberValue("ahiFps", 1, 60)}`,
     `minimum_data_hz=${numberValue("ahiMinimumDataHz", 1, 1000)}`,
@@ -1299,6 +1550,7 @@ function buildProfile() {
     `reverse_yaw=${elements.sticksReverseYaw.checked}`, `reverse_throttle=${elements.sticksReverseThrottle.checked}`,
     `position_x=${numberValue("sticksX", -4096, 4096)}`, `position_y=${numberValue("sticksY", -4096, 4096)}`,
     `size_percent=${numberValue("sticksSize", 25, 200)}`,
+    `background_opacity=${numberValue("sticksBackgroundOpacity", 0, 100)}`,
     `max_fps=${numberValue("sticksFps", 1, 60)}`,
     `minimum_data_hz=${numberValue("sticksMinimumDataHz", 1, 1000)}`,
     `data_hz=${numberValue("sticksDataHz", 1, 1000)}`,
@@ -1312,7 +1564,7 @@ function buildProfile() {
     `position_y=${numberValue("statusY", 0, 1079)}`,
     `size_percent=${numberValue("statusSize", 50, 200)}`,
     `max_fps=${numberValue("statusFps", 1, 30)}`,
-    `background_opacity=${numberValue("statusOpacity", 0, 255)}`,
+    `background_opacity=${numberValue("statusOpacity", 0, 100)}`,
     `stale_timeout_ms=${numberValue("statusStale", 0, 60000)}`, "",
   ];
   for (const definition of manifestWidgets.values()) {
@@ -1354,10 +1606,35 @@ function buildProfile() {
       fieldDeadbands.set(fieldId, deadband);
     }
   }
-  for (const [fieldId, deadband] of [...fieldDeadbands.entries()]
-    .filter(([, value]) => value > 0)
-    .sort((first, second) => first[0] - second[0])) {
-    lines.push(`[field_policy.${fieldId}]`, `deadband_raw=${deadband}`, "");
+  const policyFieldIds = new Set([
+    ...[...fieldDeadbands.entries()].filter(([, value]) => value > 0).map(([id]) => id),
+    ...[...fieldColourPolicies.entries()].filter(([, policy]) => policy.enabled).map(([id]) => id),
+  ]);
+  for (const fieldId of [...policyFieldIds].sort((a, b) => a - b)) {
+    lines.push(`[field_policy.${fieldId}]`);
+    const deadband = fieldDeadbands.get(fieldId) ?? 0;
+    if (deadband > 0) lines.push(`deadband_raw=${deadband}`);
+    const colour = fieldColourPolicies.get(fieldId);
+    if (colour?.enabled) {
+      lines.push("colour_enabled=true", `colour_direction=${colour.direction}`);
+      if (Number.isFinite(colour.green)) lines.push(`green_threshold=${colour.green}`);
+      if (Number.isFinite(colour.amber)) lines.push(`amber_threshold=${colour.amber}`);
+      if (Number.isFinite(colour.red)) lines.push(`red_threshold=${colour.red}`);
+      if (colour.flashOnRed) lines.push("flash_on_red=true");
+    }
+    lines.push("");
+  }
+  for (const field of VIDEO_SYSTEM_FIELDS) {
+    const colour = videoColourPolicies.get(field.key);
+    if (!colour?.enabled) continue;
+    lines.push("[field_policy." + field.id + "]",
+      "colour_enabled=true",
+      "colour_direction=" + colour.direction);
+    if (Number.isFinite(colour.green)) lines.push("green_threshold=" + colour.green);
+    if (Number.isFinite(colour.amber)) lines.push("amber_threshold=" + colour.amber);
+    if (Number.isFinite(colour.red)) lines.push("red_threshold=" + colour.red);
+    if (colour.flashOnRed) lines.push("flash_on_red=true");
+    lines.push("");
   }
   return lines.join("\n");
 }
@@ -1598,7 +1875,7 @@ async function disconnect() {
   elements.fcIdentity.textContent = "Not connected";
   elements.boardIdentity.textContent = "—";
   elements.interfaceIdentity.textContent = "—";
-  elements.selection.textContent = "0 fields enabled";
+  elements.selection.textContent = "0 fields required";
   setConnected(false);
   setStatus("Disconnected.");
 }
@@ -1621,6 +1898,9 @@ elements.reloadWidgets.addEventListener("click", reloadWidgets);
 elements.applyProfile.addEventListener("click", queueProfileSave);
 for (const id of ["ahiPitch", "ahiRoll", "sticksRoll", "sticksPitch", "sticksYaw",
   "sticksThrottle"]) {
+  elements[id].addEventListener("change", () => enableRequiredWidgetFields(true));
+}
+for (const id of ["ahiDataHz", "sticksDataHz"]) {
   elements[id].addEventListener("change", () => enableRequiredWidgetFields(true));
 }
 for (const id of ["ahiVisible", "sticksVisible", "statusVisible"]) {
@@ -1663,7 +1943,7 @@ for (const id of ["ahiX", "ahiY", "ahiWidth", "ahiHeight",
   "ahiFps", "ahiMinimumDataHz", "ahiDataHz",
   "sticksFps", "sticksMinimumDataHz", "sticksDataHz", "statusFps",
   "sticksX", "sticksY",
-  "sticksSize", "statusX", "statusY", "statusSize",
+  "sticksSize", "sticksBackgroundOpacity", "statusX", "statusY", "statusSize",
   "statusVtxTemperature", "statusGogglesTemperature",
   "statusVtxVoltage", "statusGogglesVoltage"]) {
   elements[id].addEventListener("input", refreshLayout);
@@ -1680,8 +1960,9 @@ setConnected(false);
 refreshLayout();
 loadWidgetManifests();
 if (!("serial" in navigator)) {
+renderVideoSystemFields();
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=36").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=75").catch(() => {});
 }

@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=38">
+  <link rel="stylesheet" href="./styles.css?v=40">
 </head>
 <body>
   <main>
@@ -59,7 +59,8 @@
           <label>Centre Y (0–10000)<input id="ahiY" type="number" min="0" max="10000" value="5000"></label>
           <label>Width<input id="ahiWidth" type="number" min="1" max="10000" value="4000"></label>
           <label>Height<input id="ahiHeight" type="number" min="1" max="10000" value="5000"></label>
-          <label>Pitch scale<input id="ahiPitchScale" type="number" min="0.1" max="10" step="0.1" value="1.0"></label>
+          <label>Vertical range (degrees)<input id="ahiPitchScale" type="number" min="20" max="180" step="5" value="90"></label>
+          <label>Line thickness (px)<input id="ahiLineWidth" type="number" min="1" max="12" step="1" value="3"></label>
           <label>Smoothing (0–10)<input id="ahiSmoothing" type="number" min="0" max="10" step="0.1" value="0"></label>
           <label>Maximum FPS<input id="ahiFps" type="number" min="1" max="60" value="30"></label>
           <label>Minimum data rate<input id="ahiMinimumDataHz" type="number" min="1" max="1000" value="20"></label>
@@ -67,6 +68,7 @@
           <label>Stale timeout (ms)<input id="ahiStale" type="number" min="1200" max="10000" value="2500"></label>
           <label class="check"><input id="ahiReversePitch" type="checkbox"> Reverse pitch</label>
           <label class="check"><input id="ahiReverseRoll" type="checkbox"> Reverse roll</label>
+          <label class="check"><input id="ahiTestMode" type="checkbox"> Test mode (animate AHI)</label>
           </div>
         </fieldset>
         <fieldset class="widget-card collapsed" data-widget-card="sticks" data-widget-title="Sticks"><legend><label class="widget-enable"><input id="sticksVisible" type="checkbox" checked> Sticks</label><span class="widget-summary">Enabled · 30 FPS</span><button type="button" class="widget-collapse-toggle" aria-expanded="false" aria-controls="sticksCardBody" aria-label="Show Sticks settings"></button></legend>
@@ -76,6 +78,7 @@
           <label>Yaw field<input id="sticksYaw" value="RC3"></label><label>Throttle field<input id="sticksThrottle" value="RC4"></label>
           <label>X position<input id="sticksX" type="number" value="1340"></label><label>Y position<input id="sticksY" type="number" value="750"></label>
           <label>Size (%)<input id="sticksSize" type="number" min="25" max="200" value="100"></label>
+          <label>Background opacity<input id="sticksBackgroundOpacity" type="number" min="0" max="100" value="50"> %</label>
           <label>Maximum FPS<input id="sticksFps" type="number" min="1" max="60" value="30"></label>
           <label>Minimum data rate<input id="sticksMinimumDataHz" type="number" min="1" max="1000" value="10"></label>
           <label>Preferred data rate<input id="sticksDataHz" type="number" min="1" max="1000" value="20"></label>
@@ -96,7 +99,7 @@
           <label>Y position<input id="statusY" type="number" min="0" max="1079" value="12"></label>
           <label>Size (%)<input id="statusSize" type="number" min="50" max="200" value="100"></label>
           <label>Maximum FPS<input id="statusFps" type="number" min="1" max="30" value="4"></label>
-          <label>Background opacity<input id="statusOpacity" type="number" min="0" max="255" value="150"></label>
+          <label>Background opacity<input id="statusOpacity" type="number" min="0" max="100" value="59"> %</label>
           <label>Stale timeout (ms)<input id="statusStale" type="number" min="0" max="60000" value="3000"></label>
           </div>
         </fieldset>
@@ -110,19 +113,31 @@
         <div><p class="eyebrow">STREAM SUBSCRIPTIONS</p><div class="heading-title"><h2>Fields</h2><button id="load" disabled>Load GHOST fields</button></div></div>
         <div class="heading-tools">
           <label class="compact-toggle"><input id="hideInactive" type="checkbox"> Hide fields not On</label>
-          <span id="selection">0 fields enabled</span>
+          <span id="selection">0 fields required</span>
         </div>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>On</th><th>Field</th><th>Requested rate</th><th>Deadband</th><th>FC limit</th></tr></thead>
+          <thead><tr><th>On</th><th>Field</th><th>Widget-requested rate</th><th>Deadband</th><th>FC limit</th></tr></thead>
           <tbody id="fields"><tr class="empty"><td colspan="5">Connect and load a flight controller.</td></tr></tbody>
         </table>
       </div>
-      <div class="footer-actions"><p>MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
+      <div class="footer-actions"><p>On fields are derived from enabled widgets. MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
+    </section>
+
+    <section class="panel fields-panel video-fields-panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">VIDEO SYSTEM</p><div class="heading-title"><h2>Video System Fields</h2></div></div>
+        <div class="heading-tools"><span>VRX and VTX telemetry</span></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Field</th><th>Source</th><th>Unit</th><th>Colour policy</th></tr></thead>
+        <tbody id="videoSystemFields"></tbody>
+      </table></div>
+      <div class="footer-actions"><p>Colour policies are stored on the VRX and apply to video-system widgets without adding FC traffic.</p></div>
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=54"></script>
+  <script type="module" src="./app.js?v=66"></script>
 </body>
 </html>
