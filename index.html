@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=40">
+  <link rel="stylesheet" href="./styles.css?v=41">
 </head>
 <body>
   <main>
@@ -16,16 +16,26 @@
       <div class="actions"><button id="connect" class="primary">Connect FC</button></div>
     </section>
 
+    <nav class="config-nav" aria-label="Configurator sections">
+      <div class="config-tabs">
+        <button type="button" class="config-tab active" data-config-target="dashboard">Dashboard</button>
+        <button type="button" class="config-tab" data-config-target="widgets">Layout &amp; widgets</button>
+        <button type="button" class="config-tab" data-config-target="fields">Fields</button>
+        <button type="button" class="config-tab" data-config-target="video">Video system</button>
+      </div>
+      <label class="config-mode"><span>Interface</span><select id="configuratorMode"><option value="modern">New</option><option value="classic">Classic</option></select></label>
+    </nav>
+
     <div id="status" class="status" role="status">Ready to connect.</div>
 
-    <section class="identity panel">
+    <section class="identity panel config-page" data-config-page="dashboard">
       <div><small>Firmware</small><strong id="fcIdentity">Not connected</strong></div>
       <div><small>Board</small><strong id="boardIdentity">—</strong></div>
       <div><small>Interface</small><strong id="interfaceIdentity">—</strong></div>
       <div><small>FC DisplayPort</small><strong id="streamRate">—</strong></div>
     </section>
 
-    <section class="panel widget-panel">
+    <section class="panel widget-panel config-page" data-config-page="widgets">
       <div class="section-heading">
         <div><p class="eyebrow">VRX PROFILE</p><div class="heading-title"><h2>Widgets</h2><button id="connectVrx">Connect VRX</button><button id="loadProfile" disabled>Read profile</button><button id="reloadWidgets" disabled>Reload widgets</button></div></div>
         <span id="profileInfo">Not loaded</span>
@@ -109,7 +119,7 @@
       <div class="footer-actions"><p>Changing a widget’s enabled state saves it and its required field subscriptions immediately.</p><button id="applyProfile" class="primary" disabled>Save widget &amp; fields</button></div>
     </section>
 
-    <section class="panel fields-panel">
+    <section class="panel fields-panel config-page" data-config-page="fields">
       <div class="section-heading">
         <div><p class="eyebrow">STREAM SUBSCRIPTIONS</p><div class="heading-title"><h2>Fields</h2><button id="load" disabled>Load GHOST fields</button></div></div>
         <div class="heading-tools">
@@ -126,7 +136,7 @@
       <div class="footer-actions"><p>On fields are derived from enabled widgets. MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
     </section>
 
-    <section class="panel fields-panel video-fields-panel">
+    <section class="panel fields-panel video-fields-panel config-page" data-config-page="video">
       <div class="section-heading">
         <div><p class="eyebrow">VIDEO SYSTEM</p><div class="heading-title"><h2>Video System Fields</h2></div></div>
         <div class="heading-tools"><span>VRX and VTX telemetry</span></div>
@@ -139,6 +149,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=71"></script>
+  <script type="module" src="./app.js?v=72"></script>
 </body>
 </html>

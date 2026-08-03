@@ -2050,6 +2050,40 @@ elements.sticksSize.addEventListener("change", () => {
 elements.layoutResolution.addEventListener("change", refreshLayout);
 elements.layoutSnap.addEventListener("change", refreshLayout);
 
+function selectConfiguratorPage(name) {
+  for (const page of document.querySelectorAll("[data-config-page]")) {
+    page.classList.toggle("active", page.dataset.configPage === name);
+  }
+  for (const tab of document.querySelectorAll("[data-config-target]")) {
+    const active = tab.dataset.configTarget === name;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-current", active ? "page" : "false");
+  }
+  try { localStorage.setItem("ghost-configurator-page", name); } catch (_) {}
+}
+
+function setConfiguratorMode(mode) {
+  const selected = mode === "classic" ? "classic" : "modern";
+  document.body.dataset.configMode = selected;
+  elements.configuratorMode.value = selected;
+  try { localStorage.setItem("ghost-configurator-mode", selected); } catch (_) {}
+  refreshLayout();
+}
+
+for (const tab of document.querySelectorAll("[data-config-target]")) {
+  tab.addEventListener("click", () => selectConfiguratorPage(tab.dataset.configTarget));
+}
+elements.configuratorMode.addEventListener("change", () =>
+  setConfiguratorMode(elements.configuratorMode.value));
+let initialPage = "dashboard";
+let initialMode = "modern";
+try {
+  initialPage = localStorage.getItem("ghost-configurator-page") || initialPage;
+  initialMode = localStorage.getItem("ghost-configurator-mode") || initialMode;
+} catch (_) {}
+selectConfiguratorPage(initialPage);
+setConfiguratorMode(initialMode);
+
 setConnected(false);
 refreshLayout();
 loadWidgetManifests();
@@ -2058,5 +2092,5 @@ renderVideoSystemFields();
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=81").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=82").catch(() => {});
 }
