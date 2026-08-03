@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=53">
+  <link rel="stylesheet" href="./styles.css?v=54">
 </head>
 <body>
   <main>
@@ -136,14 +136,14 @@
         <div><small>Connection</small><strong id="fieldConnectionState">Offline</strong></div>
       </div>
       <div class="field-toolbar">
-        <label>Search<input id="fieldSearch" type="search" placeholder="Name or field ID"></label>
+        <label>Search<input id="fieldSearch" type="search" placeholder="Field name"></label>
         <label>Show<select id="fieldScope"><option value="active">Active</option><option value="all">All catalogue fields</option><option value="available">Available only</option></select></label>
         <label>Group<select id="fieldGroup"><option value="all">All groups</option><option value="attitude">Attitude</option><option value="gps">GPS &amp; navigation</option><option value="power">Battery &amp; power</option><option value="rc">RC channels</option><option value="state">Flight state &amp; other</option></select></label>
       </div>
       <div class="table-wrap">
         <table class="stream-fields-table">
-          <thead><tr><th>State</th><th>Name</th><th>ID</th><th>Required by</th><th>Requested rate</th><th>FC limit</th><th>Deadband</th><th>Accepted range / step</th></tr></thead>
-          <tbody id="fields"><tr class="empty"><td colspan="8">Connect and load a flight controller.</td></tr></tbody>
+          <thead><tr><th>State</th><th>Name</th><th>Required by</th><th>Requested rate</th><th>FC limit</th><th>Deadband</th><th>Accepted range / step</th></tr></thead>
+          <tbody id="fields"><tr class="empty"><td colspan="7">Connect and load a flight controller.</td></tr></tbody>
         </table>
       </div>
       <div class="footer-actions"><p>On fields are derived from enabled widgets. MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
@@ -162,6 +162,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=84"></script>
+  <script type="module" src="./app.js?v=85"></script>
 </body>
 </html>

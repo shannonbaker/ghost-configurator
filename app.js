@@ -688,7 +688,6 @@ function renderFields() {
     row.innerHTML = `
       <td><input class="enabled" type="checkbox" ${isRequired ? "checked" : ""} disabled hidden aria-label="${capability.name} ${isRequired ? "required by an enabled widget" : "not required by enabled widgets"}"><span class="field-state ${isRequired ? "active" : "available"}">${isRequired ? "Active" : "Available"}</span></td>
       <td><span class="field-name">${capability.name}</span></td>
-      <td class="field-id">${capability.id}</td>
       <td class="field-owners">${owners.length ? owners.map((owner) => `<span>${owner}</span>`).join("") : '<span class="muted">None</span>'}</td>
       <td><input class="rate" type="hidden" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}"><strong class="rate-value">${isRequired ? `${current?.rateHz ?? Math.min(10, capability.maxHz)} Hz` : "—"}</strong></td>
       <td>${capability.maxHz} Hz</td>
@@ -748,8 +747,7 @@ function updateSummary() {
     const matchesScope = scope === "all" || (scope === "active" && active) ||
       (scope === "available" && !active);
     const matchesGroup = group === "all" || row.dataset.group === group;
-    const matchesSearch = !search || row.dataset.name.toUpperCase().includes(search) ||
-      row.dataset.id.includes(search);
+    const matchesSearch = !search || row.dataset.name.toUpperCase().includes(search);
     const filtered = !(matchesScope && matchesGroup && matchesSearch);
     row.classList.toggle("field-filtered", filtered);
     row._colourRow?.classList.toggle("field-filtered", filtered);
