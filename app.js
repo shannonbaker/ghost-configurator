@@ -4,7 +4,7 @@ import { GhostMspApi } from "./ghost-api.js";
 import {
   GhostDpApi, deadbandPresentation, displayDeadband, rawDeadband,
 } from "./ghost-dp-api.js";
-import { isNumericField, thresholdPresentation, validateColourPolicy } from "./field-colour.js";
+import { thresholdPresentation, validateColourPolicy } from "./field-colour.js";
 import {
   compactManifestOptions, parseManifestDependencies,
   resolveManifestDependencies,
@@ -38,7 +38,6 @@ const anchoredLayoutWidgets = new Set();
 const manifestWidgets = new Map();
 const builtInMenuWidgets = new Map();
 const fieldDeadbands = new Map();
-const fieldColourPolicies = new Map();
 const videoColourPolicies = new Map();
 const VIDEO_SYSTEM_FIELDS = [
   { id: 65001, key: "vtx_temperature", name: "VTX temperature", source: "VTX", unit: "\u00b0C", step: 0.1, direction: "high" },
@@ -685,17 +684,10 @@ function renderFields() {
     const deadband = fieldDeadbands.has(capability.id)
       ? fieldDeadbands.get(capability.id) : defaultDeadband;
     const presentation = deadbandPresentation(capability);
-    const numeric = isNumericField(capability);
-    const colourPresentation = thresholdPresentation(capability);
-    const colourPolicy = fieldColourPolicies.get(capability.id) ?? {
-      enabled: false, direction: "low", green: NaN, amber: NaN, red: NaN,
-      flashOnRed: false,
-    };
-    const thresholdValue = (value) => Number.isFinite(value) ? String(value) : "";
     const row = document.createElement("tr");
     row.innerHTML = `
       <td><input class="enabled" type="checkbox" ${isRequired ? "checked" : ""} disabled aria-label="${capability.name} ${isRequired ? "required by an enabled widget" : "not required by enabled widgets"}" title="Controlled by enabled widgets"></td>
-      <td><span class="field-name">${capability.name}</span><small>ID ${capability.id}</small>${numeric ? '<button class="field-colour-toggle" type="button" aria-expanded="false">Colour thresholds</button>' : ""}</td>
+      <td><span class="field-name">${capability.name}</span><small>ID ${capability.id}</small></td>
       <td class="field-owners">${owners.length ? owners.map((owner) => `<span>${owner}</span>`).join("") : '<span class="muted">None</span>'}</td>
       <td><input class="rate" type="number" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}" disabled aria-label="${capability.name} widget-requested rate" title="Controlled by enabled widget requirements"><span>Hz</span></td>
       <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div><small>${deadband} raw</small></div></td>
@@ -725,57 +717,6 @@ function renderFields() {
     });
     elements.fields.append(row);
 
-    if (numeric) {
-      const colourRow = document.createElement("tr");
-      colourRow.className = "field-colour-row";
-      colourRow.hidden = true;
-      colourRow.innerHTML = `<td></td><td colspan="6"><div class="field-colour-controls">
-        <label class="check"><input class="colour-enabled" type="checkbox" ${colourPolicy.enabled ? "checked" : ""}> Enable colour thresholds</label>
-        <label>Direction<select class="colour-direction"><option value="low" ${colourPolicy.direction === "low" ? "selected" : ""}>Low is bad</option><option value="high" ${colourPolicy.direction === "high" ? "selected" : ""}>High is bad</option></select></label>
-        <label class="threshold green">Green<input class="colour-green" type="number" step="${colourPresentation.step}" value="${thresholdValue(colourPolicy.green)}"><span>${colourPresentation.unit}</span></label>
-        <label class="threshold amber">Amber<input class="colour-amber" type="number" step="${colourPresentation.step}" value="${thresholdValue(colourPolicy.amber)}"><span>${colourPresentation.unit}</span></label>
-        <label class="threshold red">Red<input class="colour-red" type="number" step="${colourPresentation.step}" value="${thresholdValue(colourPolicy.red)}"><span>${colourPresentation.unit}</span></label>
-        <label class="check"><input class="colour-flash-red" type="checkbox" ${colourPolicy.flashOnRed ? "checked" : ""}> Flash on red (500 ms)</label>
-        <small class="colour-policy-message"></small>
-      </div></td>`;
-      row._colourRow = colourRow;
-      const toggle = row.querySelector(".field-colour-toggle");
-      toggle.addEventListener("click", () => {
-        colourRow.hidden = !colourRow.hidden;
-        toggle.setAttribute("aria-expanded", String(!colourRow.hidden));
-      });
-      const enabled = colourRow.querySelector(".colour-enabled");
-      const direction = colourRow.querySelector(".colour-direction");
-      const green = colourRow.querySelector(".colour-green");
-      const amber = colourRow.querySelector(".colour-amber");
-      const red = colourRow.querySelector(".colour-red");
-      const flashOnRed = colourRow.querySelector(".colour-flash-red");
-      const message = colourRow.querySelector(".colour-policy-message");
-      const thresholdNumber = (input) => input.value.trim() === "" ? NaN : Number(input.value);
-      const readPolicy = () => ({ enabled: enabled.checked, direction: direction.value,
-        green: thresholdNumber(green), amber: thresholdNumber(amber),
-        red: thresholdNumber(red), flashOnRed: flashOnRed.checked });
-      const validate = () => {
-        const policy = readPolicy();
-        const result = validateColourPolicy(policy);
-        for (const input of [green, amber, red]) input.setCustomValidity(result.message);
-        message.textContent = result.message;
-        return result.valid ? policy : null;
-      };
-      const save = () => {
-        const policy = validate();
-        if (!policy) return;
-        if (policy.enabled) fieldColourPolicies.set(capability.id, policy);
-        else fieldColourPolicies.delete(capability.id);
-        if (profileAvailable()) queueProfileSave();
-      };
-      for (const control of [enabled, direction, green, amber, red, flashOnRed]) {
-        control.addEventListener("input", validate);
-        control.addEventListener("change", save);
-      }
-      validate();
-      elements.fields.append(colourRow);
-    }
   }
   refreshManifestFieldControls();
   enableRequiredWidgetFields();
@@ -1601,7 +1542,6 @@ function populateProfile(text) {
   const sections = parseIni(text);
   lastProfileSections = sections;
   fieldDeadbands.clear();
-  fieldColourPolicies.clear();
   videoColourPolicies.clear();
   for (const [section, values] of sections) {
     const match = /^field_policy\.(\d+)$/.exec(section);
@@ -1628,16 +1568,6 @@ function populateProfile(text) {
     const deadband = Number(values.deadband_raw ?? 0);
     if (fieldId > 0 && Number.isInteger(deadband) && deadband >= 0)
       fieldDeadbands.set(fieldId, deadband);
-    if (fieldId > 0 && hasColour) {
-      fieldColourPolicies.set(fieldId, {
-        enabled: truthy(values.colour_enabled),
-        direction: values.colour_direction === "high" ? "high" : "low",
-        green: Number(values.green_threshold),
-        amber: Number(values.amber_threshold),
-        red: Number(values.red_threshold),
-        flashOnRed: truthy(values.flash_on_red),
-      });
-    }
   }
   const parsedReloadToken = Number(sections.get("display")?.r ?? 0);
   widgetReloadToken = Number.isInteger(parsedReloadToken) &&
@@ -1844,22 +1774,14 @@ function buildProfile() {
       fieldDeadbands.set(fieldId, deadband);
     }
   }
-  const policyFieldIds = new Set([
-    ...[...fieldDeadbands.entries()].filter(([, value]) => value > 0).map(([id]) => id),
-    ...[...fieldColourPolicies.entries()].filter(([, policy]) => policy.enabled).map(([id]) => id),
-  ]);
+  const policyFieldIds = new Set(
+    [...fieldDeadbands.entries()]
+      .filter(([, value]) => value > 0).map(([id]) => id),
+  );
   for (const fieldId of [...policyFieldIds].sort((a, b) => a - b)) {
     lines.push(`[field_policy.${fieldId}]`);
     const deadband = fieldDeadbands.get(fieldId) ?? 0;
     if (deadband > 0) lines.push(`deadband_raw=${deadband}`);
-    const colour = fieldColourPolicies.get(fieldId);
-    if (colour?.enabled) {
-      lines.push("colour_enabled=true", `colour_direction=${colour.direction}`);
-      if (Number.isFinite(colour.green)) lines.push(`green_threshold=${colour.green}`);
-      if (Number.isFinite(colour.amber)) lines.push(`amber_threshold=${colour.amber}`);
-      if (Number.isFinite(colour.red)) lines.push(`red_threshold=${colour.red}`);
-      if (colour.flashOnRed) lines.push("flash_on_red=true");
-    }
     lines.push("");
   }
   for (const field of VIDEO_SYSTEM_FIELDS) {
