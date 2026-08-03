@@ -1544,7 +1544,12 @@ function populateProfile(text) {
 }
 
 function fieldName(id) {
-  const value = elements[id].value.trim().toUpperCase();
+  let value = elements[id].value.trim().toUpperCase();
+  const numericId = Number(value);
+  if (Number.isInteger(numericId)) {
+    const capability = capabilities.find((field) => field.id === numericId);
+    if (capability) value = capability.name.toUpperCase();
+  }
   if (!/^[A-Z][A-Z0-9_]{0,31}$/.test(value)) throw new Error(`${id} is not a valid field name`);
   return value;
 }
