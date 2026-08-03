@@ -144,20 +144,28 @@ footer { padding:22px; border-top:1px solid var(--line); color:#637482; text-ali
 .config-mode { flex:0 0 auto; display:flex; flex-direction:row; align-items:center; gap:8px; }
 .config-mode select { min-width:95px; padding:7px 9px; }
 body[data-config-mode="modern"] .config-page:not(.active) { display:none; }
-body[data-config-mode="modern"] { --bg:#181a1c; --panel:#25282b; --line:#3b3f43; --muted:#a6abb0; --text:#f1f1f1; --accent:#f4d03f; --accent-dark:#3a3414; background:radial-gradient(circle at 68% -12%,#353535 0,transparent 32rem),#181a1c; }
-body[data-config-mode="modern"] .panel { background:linear-gradient(150deg,#292c2f,#222426); box-shadow:0 16px 38px #0005; }
-body[data-config-mode="modern"] .config-nav { background:#202225f5; }
-body[data-config-mode="modern"] button { border-color:#4a4e52; background:#303337; }
-body[data-config-mode="modern"] button:hover:not(:disabled) { border-color:#777c80; background:#3a3e42; }
+body[data-config-mode="modern"] { color-scheme:light; --bg:#eceff1; --panel:#fff; --line:#d3d7da; --muted:#687078; --text:#25282b; --accent:#f2c500; --accent-dark:#fff3b5; background:linear-gradient(135deg,#f6f7f8,#e7eaec); }
+body[data-config-mode="modern"] .panel { background:#fff; box-shadow:0 10px 28px #39404718; }
+body[data-config-mode="modern"] .config-nav { background:#292c2f; color:#f4f4f4; }
+body[data-config-mode="modern"] .config-nav .sidebar-brand strong,body[data-config-mode="modern"] .config-nav .sidebar-connections strong { color:#f4f4f4; }
+body[data-config-mode="modern"] .config-nav .config-tab { color:#b9bec2; }
+body[data-config-mode="modern"] .config-nav .config-tab.active { border-color:#f2c500; background:#f2c500; color:#202224; }
+body[data-config-mode="modern"] .config-nav .config-mode { color:#c7cbce; }
+body[data-config-mode="modern"] .eyebrow,body[data-config-mode="modern"] .widget-option-group { color:#806900; }
+body[data-config-mode="modern"] button { border-color:#c4c9cd; background:#f3f4f5; }
+body[data-config-mode="modern"] button:hover:not(:disabled) { border-color:#959ca2; background:#e8eaec; }
 body[data-config-mode="modern"] button.primary { border-color:var(--accent); background:var(--accent); color:#181818; }
 body[data-config-mode="modern"] button.primary:hover:not(:disabled) { background:#ffe36b; }
-body[data-config-mode="modern"] label input:not([type="checkbox"]),body[data-config-mode="modern"] select,body[data-config-mode="modern"] input[type="number"] { border-color:#4a4e52; background:#1b1d1f; }
+body[data-config-mode="modern"] label input:not([type="checkbox"]),body[data-config-mode="modern"] select,body[data-config-mode="modern"] input[type="number"] { border-color:#c7ccd0; background:#fff; color:#25282b; }
 body[data-config-mode="modern"] .layout-canvas { border-color:#4b4f53; background:radial-gradient(circle at center,#303336 0,#1b1d1f 72%); }
 body[data-config-mode="modern"] .layout-widget { border-color:#f4d03fbb; background:#373314cc; }
 body[data-config-mode="modern"] .layout-guide { background:#f4d03f24; }
 body[data-config-mode="modern"] .layout-widget .layout-resize-handle,body[data-config-mode="modern"] .layout-widget .layout-anchor-toggle[aria-pressed="true"] { background:var(--accent); }
 body[data-config-mode="modern"] .sidebar-connections button.connected .connection-dot { background:#62c879; box-shadow:0 0 0 3px #62c8792c; }
-body[data-config-mode="modern"] .status[data-level="good"] { border-color:#39794b; background:#1d3022; color:#8ddd9f; }
+body[data-config-mode="modern"] .status { background:#fff; }
+body[data-config-mode="modern"] .status[data-level="good"] { border-color:#74b984; background:#eaf7ed; color:#246b35; }
+body[data-config-mode="modern"] .status[data-level="bad"] { border-color:#dc8a84; background:#fff0ef; color:#a52f27; }
+body[data-config-mode="modern"] .field-colour-row td { background:#f5f6f7; }
 body[data-config-mode="modern"] main { width:auto; max-width:1500px; margin:0 24px 0 248px; }
 body[data-config-mode="modern"] .config-nav { position:fixed; inset:16px auto 16px 16px; width:212px; margin:0; padding:14px 10px; align-items:stretch; justify-content:flex-start; flex-direction:column; border-radius:13px; }
 body[data-config-mode="modern"] .sidebar-brand { padding:0 5px 8px; }
@@ -197,7 +205,7 @@ body[data-config-mode="modern"] .widget-option-group { margin:4px 0 0; padding-b
 body[data-config-mode="modern"] fieldset .widget-description { font-size:10px; line-height:1.35; }
 body[data-config-mode="modern"] .widget-collapse-toggle { width:20px; min-width:20px; height:20px; }
 body[data-config-mode="modern"] .manifest-widget-container { display:block; }
-body[data-config-mode="modern"] .widget-panel>.footer-actions { position:sticky; bottom:0; z-index:5; grid-column:1/-1; background:#10171df5; }
+body[data-config-mode="modern"] .widget-panel>.footer-actions { position:sticky; bottom:0; z-index:5; grid-column:1/-1; background:#fffffff2; }
 @media (max-width:720px) { main{padding:34px 0}.hero{align-items:flex-start;flex-direction:column}.hero-heading{align-items:flex-start}.identity{grid-template-columns:1fr 1fr}.identity-actions{grid-column:1/-1}.layout-editor{padding:0 12px 18px}.layout-toolbar{align-items:flex-start;flex-direction:column}.layout-toolbar label{width:100%}.layout-readout{align-items:flex-start;flex-direction:column;gap:3px}.widget-grid{grid-template-columns:1fr;padding:0 12px 18px}.widget-card-body{grid-template-columns:1fr}.widget-summary{display:none}.heading-tools{align-items:flex-end;flex-direction:column;gap:6px}.footer-actions{align-items:flex-start;flex-direction:column}.footer-actions button{width:100%}th,td{padding:12px} }
 @media (max-width:1180px) { body[data-config-mode="modern"] .widget-panel{display:block}body[data-config-mode="modern"] .widget-grid{max-height:none;padding:18px 12px} }
 @media (max-width:900px) { body[data-config-mode="modern"] main{margin:0 12px;padding-top:132px}body[data-config-mode="modern"] .config-nav{inset:8px 8px auto;width:auto;max-height:116px;overflow:auto}body[data-config-mode="modern"] .sidebar-brand{display:none}body[data-config-mode="modern"] .sidebar-connections{flex-direction:row;border-top:0}body[data-config-mode="modern"] .config-tabs{flex-direction:row;overflow:auto}body[data-config-mode="modern"] .config-tab{width:auto}body[data-config-mode="modern"] .config-mode{display:none}body[data-config-mode="modern"] .widget-panel{display:block}body[data-config-mode="modern"] .widget-grid{max-height:none;padding:18px 12px} }
