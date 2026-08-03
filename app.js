@@ -86,8 +86,8 @@ function widgetLogicalRect(widget) {
     if (!definition) return { x: 0, y: 0, width: 1, height: 1 };
     const value = (key, fallback) =>
       Number(definition.controls.get(key)?.value ?? fallback);
-    const automaticSize = definition.widget.id === "ghost_dp_stats"
-      ? ghostStatsPreviewSize(definition) : null;
+    const automaticSize = definition.widget.preview_size === "field_table"
+      ? fieldTablePreviewSize(definition) : null;
     const placementScale = definition.widget.placement_scale
       ? value(definition.widget.placement_scale, 100) / 100 : 1;
     const placementWidth = Number(
@@ -129,36 +129,25 @@ function widgetLogicalRect(widget) {
   });
 }
 
-function ghostStatsPreviewSize(definition) {
+function fieldTablePreviewSize(definition) {
+  const textOption = definition.widget.preview_text_option ?? "text_size_px";
   const textPx = Math.max(10, Math.min(36,
-    Number(definition.controls.get("text_size_px")?.value ?? 17)));
+    Number(definition.controls.get(textOption)?.value ?? 17)));
   const activeRows = [...elements.fields.querySelectorAll("tr[data-name]")]
     .filter((row) => row.querySelector(".enabled")?.checked);
   const fieldNames = activeRows.length
     ? activeRows.map((row) => row.dataset.name)
     : [...configured.values()].map((field) => field.name).filter(Boolean);
-  const canvas = ghostStatsPreviewSize.canvas ??=
-    document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  context.font = `${textPx}px sans-serif`;
-  const measure = (text) => Math.ceil(context.measureText(text).width);
-  const summaryLines = [
-    "STREAM ON   FIELD RX 000.0 kbps",
-    "GHOST RX 000.0   TX 000.0 kbps",
-    "DISPLAYPORT RX 000.0   TX 000.0   TOTAL 000.0 kbps",
-    "RESERVED 000.0   LIMIT 000.0 kbps   100%",
-    `FIELDS ${fieldNames.length}   PKT 000000   ERR 000   RENEW 0000`,
-  ];
-  const plainWidth = Math.max(...summaryLines.map(measure));
-  const firstColumn = Math.max(measure("FIELD"),
-    ...fieldNames.map((name) => measure(name)));
-  const secondColumn = measure("000.0 Hz");
-  const thirdColumn = measure("REQUEST");
+  const baseColumns = Number(definition.widget.preview_columns ?? 48);
+  const longestField = Math.max(5, ...fieldNames.map((name) => name.length));
+  const columns = Math.max(baseColumns, longestField + 20);
   const width = Math.max(120, Math.min(1900,
-    Math.max(plainWidth, firstColumn + secondColumn + thirdColumn + 36) + 24));
-  const rowHeight = Math.ceil(textPx * 1.2) + 5;
+    Math.ceil(columns * textPx * 0.62) + 24));
+  const rowHeight = Math.ceil(textPx *
+    Number(definition.widget.preview_row_height ?? 1.2)) + 5;
+  const baseRows = Number(definition.widget.preview_base_rows ?? 6);
   const height = Math.max(rowHeight + 16, Math.min(1060,
-    (6 + fieldNames.length) * rowHeight + 16));
+    (baseRows + fieldNames.length) * rowHeight + 16));
   return { width, height };
 }
 
@@ -1114,6 +1103,8 @@ function attachStickMenuToggle(definition, key, option, label) {
   toggle.disabled = !policy.allowed;
   toggle.dataset.stickMenuWidget = definition.widget.id;
   toggle.dataset.stickMenuOption = key;
+  toggle.setAttribute("aria-label",
+    `Include ${option.label ?? key} in the RC stick menu`);
   toggle.addEventListener("change", () => {
     if (!vrxApi) {
       setStatus("Connect the VRX before changing stick-menu selections.", "bad");
@@ -1122,8 +1113,15 @@ function attachStickMenuToggle(definition, key, option, label) {
     setStatus("Saving stick-menu selection to the VRX...");
     queueStickMenuSave();
   });
-  menuLabel.append(toggle, " Stick menu");
+  menuLabel.append(toggle);
   row.append(menuLabel);
+  const body = row.parentElement;
+  if (body && !body.querySelector(":scope > .widget-option-header")) {
+    const header = document.createElement("div");
+    header.className = "widget-option-header";
+    header.innerHTML = "<span>Setting</span><span>Stick menu</span>";
+    body.prepend(header);
+  }
   definition.menuControls.set(key, toggle);
 }
 
@@ -1224,8 +1222,7 @@ function attachManifestPreview(definition) {
   preview.dataset.widget = widgetKey;
   preview.tabIndex = 0;
   const label = document.createElement("span");
-  label.textContent = definition.widget.preview === "logo"
-    ? "G" : definition.widget.title;
+  label.textContent = definition.widget.preview_label ?? definition.widget.title;
   preview.append(label);
   if ((definition.widget.geometry_width && definition.widget.geometry_height) ||
       (definition.widget.size_width && definition.widget.size_height)) {

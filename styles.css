@@ -87,6 +87,8 @@ legend { box-sizing:border-box; width:calc(100% - 14px); padding:0 7px; font-wei
 label { display:flex; flex-direction:column; gap:5px; color:var(--muted); font-size:12px; }
 label.check { flex-direction:row; align-items:center; }
 .widget-option-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; }
+.widget-option-header { grid-column:1/-1; display:grid; grid-template-columns:minmax(0,1fr) 78px; gap:8px; padding:2px 0 5px; border-bottom:1px solid var(--line); color:var(--muted); font-size:9px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+.widget-option-header span:last-child { text-align:center; }
 .widget-option-row > label:first-child { min-width:0; }
 .stick-menu-choice { flex-direction:row; align-items:center; align-self:end; min-width:max-content; padding:0 0 9px; color:var(--muted); font-size:11px; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; }
 .stick-menu-choice input { width:auto; margin:0; }
@@ -190,16 +192,18 @@ body[data-config-mode="modern"] .widget-grid { grid-column:2; display:block; max
 body[data-config-mode="modern"] .widget-card { margin-bottom:8px; padding:11px 12px; border-radius:7px; }
 body[data-config-mode="modern"] .widget-card legend { width:calc(100% - 8px); padding:0 4px; }
 body[data-config-mode="modern"] .widget-card legend,body[data-config-mode="modern"] .widget-enable { font-size:12px; }
-body[data-config-mode="modern"] .widget-card-body { grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 9px; padding-top:5px; }
+body[data-config-mode="modern"] .widget-card-body { grid-template-columns:1fr; gap:5px; padding-top:5px; }
 body[data-config-mode="modern"] .widget-card-body>label:not(.check) { display:grid; grid-template-columns:minmax(0,1fr) minmax(76px,46%); align-items:center; gap:7px; min-height:30px; }
 body[data-config-mode="modern"] .widget-card-body label { font-size:10px; line-height:1.2; }
 body[data-config-mode="modern"] .widget-card-body label input:not([type="checkbox"]),body[data-config-mode="modern"] .widget-card-body label select { min-width:0; margin:0; padding:5px 6px; font-size:11px; }
 body[data-config-mode="modern"] .widget-card-body input[type="number"] { width:100%; }
 body[data-config-mode="modern"] .widget-card-body .check { min-height:29px; padding:3px 0; }
 body[data-config-mode="modern"] .widget-card-body .check input { width:15px; height:15px; }
-body[data-config-mode="modern"] .widget-option-row { grid-template-columns:minmax(0,1fr) auto; gap:5px; }
+body[data-config-mode="modern"] .widget-option-header,body[data-config-mode="modern"] .widget-option-row { display:grid; grid-template-columns:minmax(0,1fr) 62px; gap:7px; }
+body[data-config-mode="modern"] .widget-option-header { align-items:end; padding:2px 0 4px; border-bottom:1px solid var(--line); color:var(--muted); font-size:8px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+body[data-config-mode="modern"] .widget-option-header span:last-child { text-align:center; }
 body[data-config-mode="modern"] .widget-option-row>label:not(.check) { display:grid; grid-template-columns:minmax(0,1fr) minmax(76px,46%); align-items:center; gap:7px; }
-body[data-config-mode="modern"] .stick-menu-choice { padding-bottom:7px; font-size:8px; }
+body[data-config-mode="modern"] .stick-menu-choice { justify-content:center; align-self:center; padding:0; font-size:8px; }
 body[data-config-mode="modern"] .widget-option-group,body[data-config-mode="modern"] fieldset .widget-description { grid-column:1/-1; }
 body[data-config-mode="modern"] .widget-option-group { margin:4px 0 0; padding-bottom:4px; font-size:9px; }
 body[data-config-mode="modern"] fieldset .widget-description { font-size:10px; line-height:1.35; }
