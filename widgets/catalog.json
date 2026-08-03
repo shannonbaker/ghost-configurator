@@ -11,6 +11,7 @@
     "./manifests/link_status.widget.ini",
     "./manifests/vrx_status_bar.widget.ini",
     "./manifests/head_tracking.widget.ini",
+    "./manifests/mini_map.widget.ini",
     "./manifests/antenna_tracker.widget.ini",
     "./manifests/pid_scope.widget.ini",
     "./manifests/ghost_dp_stats.widget.ini",
