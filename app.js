@@ -828,10 +828,19 @@ function renderVideoSystemFields() {
     elements.videoSystemFields.append(row, colourRow);
   }
 }
+function catalogueFieldName(value) {
+  const raw = String(value ?? "").trim().toUpperCase();
+  const numericId = Number(raw);
+  const capability = Number.isInteger(numericId)
+    ? capabilities.find((field) => field.id === numericId)
+    : capabilities.find((field) => field.name.toUpperCase() === raw);
+  return capability?.name.toUpperCase() ?? raw;
+}
+
 function requiredWidgetFields() {
   const required = new Set();
   const add = (id) => {
-    const name = elements[id].value.trim().toUpperCase();
+    const name = catalogueFieldName(elements[id].value);
     if (name) required.add(name);
   };
   if (elements.ahiVisible.checked) {
@@ -873,7 +882,7 @@ function manifestRequiredFieldRates() {
     rates.set(name, Math.max(rates.get(name) ?? 0, numericRate));
   };
   const setControlRate = (fieldControl, rateControl) => {
-    const name = elements[fieldControl].value.trim().toUpperCase();
+    const name = catalogueFieldName(elements[fieldControl].value);
     if (name) setRate(name, elements[rateControl].value);
   };
   if (elements.ahiVisible.checked) {
