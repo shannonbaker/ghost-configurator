@@ -26,38 +26,14 @@ function parseIni(text) {
   return sections;
 }
 
-test("catalog exposes a valid rotating-logo package", async () => {
-  const catalog = JSON.parse(await readFile(
-    new URL("../widgets/catalog.json", import.meta.url), "utf8",
-  ));
-  assert.equal(catalog.schemaVersion, 1);
-  assert.deepEqual(catalog.manifests, [
-    "./manifests/ahi.widget.ini",
-    "./manifests/sticks.widget.ini",
-    "./manifests/status.widget.ini",
-    "./manifests/rc_menu.widget.ini",
-    "./manifests/compass.widget.ini",
-    "./manifests/rotating_logo.widget.ini",
-    "./manifests/link_status.widget.ini",
-    "./manifests/vrx_status_bar.widget.ini",
-    "./manifests/head_tracking.widget.ini",
-    "./manifests/antenna_tracker.widget.ini",
-    "./manifests/pid_scope.widget.ini",
-    "./manifests/ghost_dp_stats.widget.ini",
-  ]);
-
-  const sections = parseIni(await readFile(
-    new URL("../widgets/manifests/rotating_logo.widget.ini", import.meta.url),
-    "utf8",
-  ));
-  const widget = sections.get("widget");
-  assert.equal(widget.id, "rotating_logo");
-  assert.equal(widget.section, "rotating_logo.0");
-  assert.equal(widget.geometry_owner, "widget");
-  assert.equal(widget.geometry_width, "size");
-  assert.equal(widget.geometry_height, "size");
-  assert.equal(sections.get("option.visible").role, "visible");
-  assert.equal(sections.get("option.size").type, "logical_size");
+test("VRX widget IDs resolve directly to matching schemas", async () => {
+  for (const id of ["ahi", "sticks", "rc_menu", "mini_map",
+    "ghost_dp_stats", "msp_dp_osd"]) {
+    const sections = parseIni(await readFile(
+      new URL(`../widgets/manifests/${id}.widget.ini`, import.meta.url), "utf8",
+    ));
+    assert.equal(sections.get("widget").id, id);
+  }
 });
 
 test("compass package declares heading and home-bearing inputs", async () => {
@@ -92,16 +68,42 @@ test("link-status package exposes resizable diagnostic geometry", async () => {
   assert.equal(sections.get("option.info_file").hidden, "true");
 });
 
-test("VRX status bar package is horizontal and aspect locked", async () => {
+test("GHOST data statistics uses automatic content geometry", async () => {
+  const sections = parseIni(await readFile(
+    new URL("../widgets/manifests/ghost_dp_stats.widget.ini", import.meta.url),
+    "utf8",
+  ));
+  const widget = sections.get("widget");
+  assert.equal(widget.id, "ghost_dp_stats");
+  assert.equal(widget.geometry_width, undefined);
+  assert.equal(widget.geometry_height, undefined);
+  assert.equal(sections.has("option.width"), false);
+  assert.equal(sections.has("option.height"), false);
+});
+
+test("VRX status bar package uses independent width and height", async () => {
   const sections = parseIni(await readFile(
     new URL("../widgets/manifests/vrx_status_bar.widget.ini", import.meta.url),
     "utf8",
   ));
   const widget = sections.get("widget");
   assert.equal(widget.id, "vrx_status_bar");
-  assert.equal(widget.geometry_lock_aspect, "true");
+  assert.equal(widget.geometry_lock_aspect, "false");
   assert.equal(sections.get("option.width").default, "1000");
   assert.equal(sections.get("option.height").default, "70");
+  for (const option of [
+    "show_vtx_voltage", "show_vrx_voltage",
+    "show_vtx_temperature", "show_vrx_temperature",
+    "show_bitrate", "show_latency", "show_distance", "show_signal",
+  ]) {
+    assert.equal(sections.get("option." + option).default, "true");
+    assert.equal(sections.get("option." + option).type, "boolean");
+  }
+  assert.equal(sections.get("option.elements_configured").hidden, "true");
+  assert.equal(sections.get("option.text_px").default, "20");
+  assert.equal(sections.get("option.text_px").min, "10");
+  assert.equal(sections.get("option.text_px").max, "40");
+  assert.equal(sections.get("option.text_px").arg, "--text-px");
 });
 
 test("head-tracking package exposes three-axis mapping and geometry", async () => {
@@ -162,12 +164,33 @@ test("GHOST_DP statistics package exposes managed diagnostic geometry", async ()
   assert.equal(sections.get("option.text_size_px").default, "17");
   assert.equal(sections.get("option.text_size_px").min, "10");
   assert.equal(sections.get("option.text_size_px").max, "36");
-  assert.equal(sections.get("option.background_opacity").default, "176");
+  assert.equal(sections.get("option.background_opacity").default, "69");
   assert.equal(sections.get("option.background_opacity").min, "0");
-  assert.equal(sections.get("option.background_opacity").max, "255");
+  assert.equal(sections.get("option.background_opacity").max, "100");
+  assert.equal(sections.get("option.background_opacity").unit, "%");
+  assert.equal(sections.get("option.background_opacity").transform, "percent_to_alpha");
   assert.equal(sections.get("option.width").default, "360");
   assert.equal(sections.get("option.height").default, "224");
   assert.equal(sections.get("option.height").hidden, "true");
+});
+
+test("VTX temperature package exposes compact scalable geometry", async () => {
+  const sections = parseIni(await readFile(
+    new URL("../widgets/manifests/vtx_temperature.widget.ini", import.meta.url),
+    "utf8",
+  ));
+  const widget = sections.get("widget");
+  assert.equal(widget.id, "vtx_temperature");
+  assert.equal(widget.binary,
+    "/record/GHOST_DP/bin/ghost_dp_widget_vtx_temperature");
+  assert.equal(widget.field_shm, "false");
+  assert.equal(widget.display_scale, "true");
+  assert.equal(widget.geometry_lock_aspect, "false");
+  assert.equal(sections.get("option.background_opacity").min, "0");
+  assert.equal(sections.get("option.background_opacity").max, "100");
+  assert.equal(sections.get("option.background_opacity").transform,
+    "percent_to_alpha");
+  assert.equal(sections.get("option.refresh_hz").default, "4");
 });
 
 test("PID scope package requests one complete Betaflight axis", async () => {
@@ -218,7 +241,7 @@ test("widget binary is constrained to the managed Goggles X directory", async ()
   ));
   assert.match(
     sections.get("widget").binary,
-    /^\/record\/GHOST\/gogglesx\/bin\/ghost_widget_[A-Za-z0-9_-]+$/,
+    /^\/record\/GHOST_DP\/bin\/ghost_widget_[A-Za-z0-9_-]+$/,
   );
 });
 
@@ -257,6 +280,23 @@ test("built-in widget manifests bind stick-menu choices to existing controls", a
     assert.ok(configurable.length > 0);
     for (const [section, option] of configurable) {
       assert.ok(option.control, name + ": " + section + " has no control binding");
+    }
+  }
+});
+
+test("built-in sticks and status expose logical stick-menu positioning", async () => {
+  for (const name of ["sticks.widget.ini", "status.widget.ini"]) {
+    const sections = parseIni(await readFile(
+      new URL("../widgets/manifests/" + name, import.meta.url), "utf8",
+    ));
+    const widget = sections.get("widget");
+    assert.equal(widget.geometry_owner, "manager");
+    assert.equal(widget.geometry_x, "position_x");
+    assert.equal(widget.geometry_y, "position_y");
+    if (name === "sticks.widget.ini") {
+      assert.equal(widget.placement_base_width, "512");
+      assert.equal(widget.placement_base_height, "220");
+      assert.equal(widget.placement_scale, "size_percent");
     }
   }
 });

@@ -1353,21 +1353,19 @@ function renderManifestWidget(parsed) {
   if (lastProfileSections) populateManifestProfiles(lastProfileSections);
 }
 
-async function loadWidgetManifests() {
+async function loadWidgetManifests(inventory) {
   try {
-    const catalogUrl = new URL("./widgets/catalog.json", location.href);
-    const response = await fetch(catalogUrl, { cache: "no-store" });
-    if (!response.ok) throw new Error(`Widget catalog HTTP ${response.status}`);
-    const catalog = await response.json();
-    if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.manifests)) {
-      throw new Error("Unsupported widget catalog.");
-    }
-    const parsed = await Promise.all(catalog.manifests.map(async (path) => {
-      const url = new URL(path, catalogUrl);
+    const ids = inventory.map((widget) => widget.id)
+      .filter((id) => /^[A-Za-z0-9_-]+$/.test(id))
+      .filter((id) => !manifestWidgets.has(id) && !builtInMenuWidgets.has(id));
+    const parsed = (await Promise.all(ids.map(async (id) => {
+      const path = `./widgets/manifests/${id}.widget.ini`;
+      const url = new URL(path, location.href);
       const manifestResponse = await fetch(url, { cache: "no-store" });
+      if (manifestResponse.status === 404) return null;
       if (!manifestResponse.ok) throw new Error(`${path}: HTTP ${manifestResponse.status}`);
       return parseWidgetManifest(await manifestResponse.text(), path);
-    }));
+    }))).filter(Boolean);
     parsed.sort((a, b) => Number(a.widget.order ?? 100) - Number(b.widget.order ?? 100));
     for (const manifest of parsed) {
       if (truthy(manifest.widget.builtin)) bindBuiltInMenuWidget(manifest);
@@ -1377,13 +1375,14 @@ async function loadWidgetManifests() {
     applyVrxInventory();
     refreshLayout();
   } catch (error) {
-    setStatus(`Built-in widgets are available; package catalog failed: ${error.message}`, "bad");
+    setStatus(`VRX widget schemas failed to load: ${error.message}`, "bad");
   }
 }
 
 function applyVrxInventory() {
-  if (!vrxInventory) return;
-  const installed = new Set(vrxInventory.widgets.map((widget) => widget.id));
+  const installed = new Set(
+    vrxInventory?.widgets.map((widget) => widget.id) ?? [],
+  );
   for (const id of ["ahi", "sticks", "status"]) {
     const card = document.querySelector(`[data-widget-card="${id}"]`);
     if (card) card.hidden = !installed.has(id);
@@ -1402,8 +1401,7 @@ async function connectVrx() {
   if (vrxApi) {
     vrxApi = null;
     vrxInventory = null;
-    for (const element of document.querySelectorAll("[data-widget-card], .layout-widget"))
-      element.hidden = false;
+    applyVrxInventory();
     setConnected(Boolean(session));
     setStatus("VRX bridge disconnected.");
     return;
@@ -1417,6 +1415,7 @@ async function connectVrx() {
       throw new Error("VRX returned an unsupported widget inventory.");
     vrxApi = api;
     vrxInventory = inventory;
+    await loadWidgetManifests(inventory.widgets);
     applyVrxInventory();
     setConnected(Boolean(session));
     await loadProfile();
@@ -2142,7 +2141,7 @@ setSidebarCollapsed(initialSidebarCollapsed);
 
 setConnected(false);
 refreshLayout();
-loadWidgetManifests();
+applyVrxInventory();
 if (!("serial" in navigator)) {
 renderVideoSystemFields();
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
