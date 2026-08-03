@@ -686,13 +686,13 @@ function renderFields() {
     const presentation = deadbandPresentation(capability);
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td><input class="enabled" type="checkbox" ${isRequired ? "checked" : ""} disabled aria-label="${capability.name} ${isRequired ? "required by an enabled widget" : "not required by enabled widgets"}" title="Controlled by enabled widgets"></td>
-      <td><span class="field-name">${capability.name}</span><small>ID ${capability.id}</small></td>
+      <td><span class="field-name">${capability.name}</span></td>
+      <td class="field-id">${capability.id}</td>
       <td class="field-owners">${owners.length ? owners.map((owner) => `<span>${owner}</span>`).join("") : '<span class="muted">None</span>'}</td>
-      <td><input class="rate" type="number" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}" disabled aria-label="${capability.name} widget-requested rate" title="Controlled by enabled widget requirements"><span>Hz</span></td>
-      <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div><small>${deadband} raw</small></div></td>
+      <td><input class="rate" type="hidden" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}"><strong class="rate-value">${isRequired ? `${current?.rateHz ?? Math.min(10, capability.maxHz)} Hz` : "—"}</strong></td>
       <td>${capability.maxHz} Hz</td>
-      <td><span class="field-state ${isRequired ? "active" : "available"}">${isRequired ? "Active" : "Available"}</span></td>`;
+      <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div><small>${deadband} raw</small></div></td>
+      <td><input class="enabled" type="checkbox" ${isRequired ? "checked" : ""} disabled hidden aria-label="${capability.name} ${isRequired ? "required by an enabled widget" : "not required by enabled widgets"}"><span class="field-state ${isRequired ? "active" : "available"}">${isRequired ? "Active" : "Available"}</span></td>`;
     row.dataset.name = capability.name;
     row.dataset.id = capability.id;
     row.dataset.group = fieldGroupName(capability.name);
@@ -965,12 +965,15 @@ function enableRequiredWidgetFields(notify = false) {
       if (requestedRate) {
         const rate = row.querySelector(".rate");
         const requiredRate = Math.min(requestedRate, Number(rate.max));
+        row.querySelector(".rate-value").textContent = `${requiredRate} Hz`;
         if (Number(rate.value) !== requiredRate) {
           rate.value = requiredRate;
           changed = true;
         }
       }
       if (changed && !enabled.includes(row.dataset.name)) enabled.push(row.dataset.name);
+    } else {
+      row.querySelector(".rate-value").textContent = "—";
     }
   }
   updateSummary();
