@@ -7,16 +7,20 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=41">
+  <link rel="stylesheet" href="./styles.css?v=42">
 </head>
 <body>
   <main>
     <section class="hero">
       <div class="hero-heading"><span class="mark"><span>G</span></span><div><p class="eyebrow">FLIGHT CONTROLLER</p><h1>GHOST Configurator</h1><p>Connect directly to the FC over USB. Configuration stays between this browser and your flight controller.</p></div></div>
-      <div class="actions"><button id="connect" class="primary">Connect FC</button></div>
     </section>
 
     <nav class="config-nav" aria-label="Configurator sections">
+      <div class="sidebar-brand"><span class="mark"><span>G</span></span><strong>GHOST</strong><button id="sidebarToggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">‹</button></div>
+      <div class="sidebar-connections">
+        <button id="connect" type="button"><i class="connection-dot"></i><span><small>Flight controller</small><strong id="sidebarFcState">Disconnected</strong></span></button>
+        <button id="connectVrx" type="button"><i class="connection-dot"></i><span><small>Video receiver</small><strong id="sidebarVrxState">Disconnected</strong></span></button>
+      </div>
       <div class="config-tabs">
         <button type="button" class="config-tab active" data-config-target="dashboard">Dashboard</button>
         <button type="button" class="config-tab" data-config-target="widgets">Layout &amp; widgets</button>
@@ -37,7 +41,7 @@
 
     <section class="panel widget-panel config-page" data-config-page="widgets">
       <div class="section-heading">
-        <div><p class="eyebrow">VRX PROFILE</p><div class="heading-title"><h2>Widgets</h2><button id="connectVrx">Connect VRX</button><button id="loadProfile" disabled>Read profile</button><button id="reloadWidgets" disabled>Reload widgets</button></div></div>
+        <div><p class="eyebrow">VRX PROFILE</p><div class="heading-title"><h2>Widgets</h2><button id="loadProfile" disabled>Read profile</button><button id="reloadWidgets" disabled>Reload widgets</button></div></div>
         <span id="profileInfo">Not loaded</span>
       </div>
       <div class="layout-editor">
@@ -149,6 +153,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=73"></script>
+  <script type="module" src="./app.js?v=74"></script>
 </body>
 </html>

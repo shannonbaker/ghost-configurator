@@ -580,7 +580,10 @@ function setStatus(message, level = "neutral") {
 
 function setConnected(connected) {
   if (elements.connect) {
-    elements.connect.textContent = connected ? "Disconnect" : "Connect FC";
+    if (!elements.sidebarFcState)
+      elements.connect.textContent = connected ? "Disconnect" : "Connect FC";
+    else
+      elements.connect.title = connected ? "Disconnect flight controller" : "Connect flight controller";
     elements.connect.disabled = false;
   }
   if (elements.load) elements.load.disabled = !connected;
@@ -589,7 +592,16 @@ function setConnected(connected) {
   if (elements.loadProfile) elements.loadProfile.disabled = !profileReady;
   if (elements.reloadWidgets) elements.reloadWidgets.disabled = !profileReady;
   if (elements.applyProfile) elements.applyProfile.disabled = !profileReady;
-  if (elements.connectVrx) elements.connectVrx.textContent = vrxApi ? "Disconnect VRX" : "Connect VRX";
+  if (elements.connectVrx) {
+    if (!elements.sidebarVrxState)
+      elements.connectVrx.textContent = vrxApi ? "Disconnect VRX" : "Connect VRX";
+    else
+      elements.connectVrx.title = vrxApi ? "Disconnect video receiver" : "Connect video receiver";
+  }
+  if (elements.sidebarFcState) elements.sidebarFcState.textContent = connected ? "Connected" : "Disconnected";
+  if (elements.sidebarVrxState) elements.sidebarVrxState.textContent = vrxApi ? "Connected" : "Disconnected";
+  elements.connect?.classList.toggle("connected", connected);
+  elements.connectVrx?.classList.toggle("connected", Boolean(vrxApi));
 }
 
 function stopStreamStats() {
@@ -2105,14 +2117,28 @@ for (const tab of document.querySelectorAll("[data-config-target]")) {
 }
 elements.configuratorMode.addEventListener("change", () =>
   setConfiguratorMode(elements.configuratorMode.value));
+function setSidebarCollapsed(collapsed) {
+  document.body.classList.toggle("sidebar-collapsed", collapsed);
+  elements.sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+  elements.sidebarToggle.setAttribute("aria-label",
+    collapsed ? "Expand sidebar" : "Collapse sidebar");
+  try { localStorage.setItem("ghost-configurator-sidebar", collapsed ? "collapsed" : "expanded"); }
+  catch (_) {}
+  refreshLayout();
+}
+elements.sidebarToggle.addEventListener("click", () =>
+  setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed")));
 let initialPage = "dashboard";
 let initialMode = "modern";
+let initialSidebarCollapsed = false;
 try {
   initialPage = localStorage.getItem("ghost-configurator-page") || initialPage;
   initialMode = localStorage.getItem("ghost-configurator-mode") || initialMode;
+  initialSidebarCollapsed = localStorage.getItem("ghost-configurator-sidebar") === "collapsed";
 } catch (_) {}
 selectConfiguratorPage(initialPage);
 setConfiguratorMode(initialMode);
+setSidebarCollapsed(initialSidebarCollapsed);
 
 setConnected(false);
 refreshLayout();
