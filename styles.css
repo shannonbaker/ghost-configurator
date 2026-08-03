@@ -93,6 +93,9 @@ label.check { flex-direction:row; align-items:center; }
 .widget-option-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; }
 .widget-option-header { grid-column:1/-1; display:grid; grid-template-columns:minmax(0,1fr) 78px; gap:8px; padding:2px 0 5px; border-bottom:1px solid var(--line); color:var(--muted); font-size:9px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
 .widget-option-header span:last-child { text-align:center; }
+.widget-card-actions { grid-column:1/-1; display:flex; justify-content:flex-end; padding-top:5px; border-top:1px solid var(--line); }
+.widget-card-actions .widget-save { padding:4px 10px; border-color:transparent; background:transparent; color:var(--muted); font-size:10px; font-weight:700; }
+.widget-card-actions .widget-save:hover:not(:disabled) { border-color:var(--line); color:var(--text); }
 .widget-option-row > label:first-child { min-width:0; }
 .stick-menu-choice { flex-direction:row; align-items:center; align-self:end; min-width:max-content; padding:0 0 9px; color:var(--muted); font-size:11px; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; }
 .stick-menu-choice input { width:auto; margin:0; }
@@ -206,6 +209,8 @@ body[data-config-mode="modern"] .widget-card-body .check input { width:15px; hei
 body[data-config-mode="modern"] .widget-option-header,body[data-config-mode="modern"] .widget-option-row { display:grid; grid-template-columns:minmax(0,1fr) 62px; gap:7px; }
 body[data-config-mode="modern"] .widget-option-header { align-items:end; padding:2px 0 4px; border-bottom:1px solid var(--line); color:var(--muted); font-size:8px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
 body[data-config-mode="modern"] .widget-option-header span:last-child { text-align:center; }
+body[data-config-mode="modern"] .widget-card-actions { margin-top:2px; }
+body[data-config-mode="modern"] .widget-card-actions .widget-save { color:#806900; }
 body[data-config-mode="modern"] .widget-option-row>label:not(.check) { display:grid; grid-template-columns:minmax(0,1fr) minmax(76px,46%); align-items:center; gap:7px; }
 body[data-config-mode="modern"] .stick-menu-choice { justify-content:center; align-self:center; padding:0; font-size:8px; }
 body[data-config-mode="modern"] .widget-option-group,body[data-config-mode="modern"] fieldset .widget-description { grid-column:1/-1; }

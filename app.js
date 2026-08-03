@@ -591,6 +591,8 @@ function setConnected(connected) {
   if (elements.sidebarVrxState) elements.sidebarVrxState.textContent = vrxApi ? "Connected" : "Disconnected";
   elements.connect?.classList.toggle("connected", connected);
   elements.connectVrx?.classList.toggle("connected", Boolean(vrxApi));
+  for (const button of document.querySelectorAll(".widget-save"))
+    button.disabled = !profileReady;
 }
 
 function stopStreamStats() {
@@ -1125,8 +1127,42 @@ function attachStickMenuToggle(definition, key, option, label) {
   definition.menuControls.set(key, toggle);
 }
 
+function attachWidgetSaveButton(definition) {
+  const body = definition.card?.querySelector(".widget-card-body");
+  if (!body || body.querySelector(":scope > .widget-card-actions")) return;
+  const actions = document.createElement("div");
+  actions.className = "widget-card-actions";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "widget-save";
+  button.textContent = "Save";
+  button.title = `Save ${definition.widget.title} configuration`;
+  button.disabled = !profileAvailable();
+  button.addEventListener("click", async () => {
+    if (!profileAvailable()) {
+      setStatus("Connect the VRX before saving widget configuration.", "bad");
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "Saving…";
+    try {
+      await queueProfileSave();
+      button.textContent = "Saved";
+      setTimeout(() => { button.textContent = "Save"; }, 1200);
+    } finally {
+      button.disabled = !profileAvailable();
+      if (button.textContent === "Saving…") button.textContent = "Save";
+    }
+  });
+  actions.append(button);
+  body.append(actions);
+}
+
 function bindBuiltInMenuWidget(parsed) {
   const definition = { ...parsed, controls: new Map(), menuControls: new Map() };
+  definition.card = document.querySelector(
+    `[data-widget-card="${definition.widget.id}"]`,
+  );
   for (const [key, option] of definition.options) {
     if (key === definition.visibleKey || option.hidden === "true") continue;
     const control = elements[option.control];
@@ -1135,6 +1171,7 @@ function bindBuiltInMenuWidget(parsed) {
     definition.controls.set(key, control);
     attachStickMenuToggle(definition, key, option, label);
   }
+  attachWidgetSaveButton(definition);
   builtInMenuWidgets.set(definition.widget.id, definition);
 }
 
@@ -1341,6 +1378,7 @@ function renderManifestWidget(parsed) {
     }
     queueProfileSave();
   });
+  attachWidgetSaveButton(definition);
   elements.manifestWidgets.append(fieldset);
   manifestWidgets.set(definition.widget.id, definition);
   initializeWidgetCard(fieldset);
