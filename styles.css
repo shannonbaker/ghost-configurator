@@ -210,7 +210,8 @@ body[data-config-mode="modern"] .widget-option-header,body[data-config-mode="mod
 body[data-config-mode="modern"] .widget-option-header { align-items:end; padding:2px 0 4px; border-bottom:1px solid var(--line); color:var(--muted); font-size:8px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
 body[data-config-mode="modern"] .widget-option-header span:last-child { text-align:center; }
 body[data-config-mode="modern"] .widget-card-actions { margin-top:2px; }
-body[data-config-mode="modern"] .widget-card-actions .widget-save { color:#806900; }
+body[data-config-mode="modern"] .widget-card-actions .widget-save { border-color:#d1b000; background:#fff5b8; color:#4c4000; }
+body[data-config-mode="modern"] .widget-card-actions .widget-save:hover:not(:disabled) { border-color:#9e8500; background:#ffe66b; color:#292200; }
 body[data-config-mode="modern"] .widget-option-row>label:not(.check) { display:grid; grid-template-columns:minmax(0,1fr) minmax(76px,46%); align-items:center; gap:7px; }
 body[data-config-mode="modern"] .stick-menu-choice { justify-content:center; align-self:center; padding:0; font-size:8px; }
 body[data-config-mode="modern"] .widget-option-group,body[data-config-mode="modern"] fieldset .widget-description { grid-column:1/-1; }
