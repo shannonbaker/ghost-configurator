@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -246,13 +246,13 @@ test("widget binary is constrained to the managed Goggles X directory", async ()
 });
 
 test("every user-facing option declares its RC stick-menu policy", async () => {
-  const catalog = JSON.parse(await readFile(
-    new URL("../widgets/catalog.json", import.meta.url), "utf8",
-  ));
+  const directory = new URL("../widgets/manifests/", import.meta.url);
+  const manifests = (await readdir(directory))
+    .filter((name) => name.endsWith(".widget.ini"));
   const policies = new Set(["default", "optional", "never"]);
-  for (const path of catalog.manifests) {
+  for (const path of manifests) {
     const sections = parseIni(await readFile(
-      new URL("../widgets/" + path.replace("./", ""), import.meta.url), "utf8",
+      new URL(path, directory), "utf8",
     ));
     for (const [section, option] of sections) {
       if (!section.startsWith("option.")) continue;
