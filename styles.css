@@ -136,6 +136,7 @@ td:first-child,th:first-child { width:58px; }
 .stream-fields-table .deadband-range { min-width:130px; white-space:nowrap; }
 .stream-fields-table .deadband-range span,.stream-fields-table .deadband-range small { display:block; }
 .stream-fields-table .deadband-range small { color:var(--muted); font-size:9px; }
+.stream-fields-table .not-applicable { color:var(--muted); font-size:10px; }
 .stream-fields-table .field-state { padding:2px 6px; font-size:8px; }
 .field-name { display:block; font-weight:700; }
 .field-name+small { display:block; font-size:11px; }

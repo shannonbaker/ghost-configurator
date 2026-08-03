@@ -650,6 +650,9 @@ function fieldGroupName(name) {
   return "state";
 }
 
+const NO_DEADBAND_FIELDS = new Set(["GPS_SATELLITES", "GPS_FIX", "HOME_VALID"]);
+function fieldSupportsDeadband(name) { return !NO_DEADBAND_FIELDS.has(name); }
+
 function fieldOwners(capability) {
   if (!vrxInventory) return [];
   const name = capability.name.toUpperCase();
@@ -679,6 +682,7 @@ function renderFields() {
     const current = configured.get(capability.name);
     const isRequired = required.has(capability.name.toUpperCase());
     const owners = fieldOwners(capability);
+    const supportsDeadband = fieldSupportsDeadband(capability.name);
     const defaultDeadband = /^RC(?:[1-9]|1[0-8])$/.test(capability.name)
       ? 3 : (["PITCH", "ROLL"].includes(capability.name) ? 2 : 0);
     const deadband = fieldDeadbands.has(capability.id)
@@ -691,8 +695,8 @@ function renderFields() {
       <td class="field-owners">${owners.length ? owners.map((owner) => `<span>${owner}</span>`).join("") : '<span class="muted">None</span>'}</td>
       <td><input class="rate" type="hidden" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}"><strong class="rate-value">${isRequired ? `${current?.rateHz ?? Math.min(10, capability.maxHz)} Hz` : "—"}</strong></td>
       <td>${capability.maxHz} Hz</td>
-      <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div></div></td>
-      <td class="deadband-range"><span>0–${displayDeadband(255, presentation)} ${presentation.unit}</span><small>step ${displayDeadband(1, presentation)} ${presentation.unit}</small></td>`;
+      <td>${supportsDeadband ? `<div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div></div>` : '<span class="not-applicable">—</span>'}</td>
+      <td class="deadband-range">${supportsDeadband ? `<span>0–${displayDeadband(255, presentation)} ${presentation.unit}</span><small>step ${displayDeadband(1, presentation)} ${presentation.unit}</small>` : '<span class="not-applicable">Not applicable</span>'}</td>`;
     row.dataset.name = capability.name;
     row.dataset.id = capability.id;
     row.dataset.group = fieldGroupName(capability.name);
@@ -700,13 +704,14 @@ function renderFields() {
     row.dataset.deadbandDecimals = presentation.decimals;
     const deadbandInput = row.querySelector(".deadband");
     const validateDeadband = () => {
+      if (!deadbandInput) return 0;
       const raw = rawDeadband(deadbandInput.value, presentation);
       deadbandInput.setCustomValidity(raw === null
         ? `Use increments of ${displayDeadband(1, presentation)} ${presentation.unit}` : "");
       return raw;
     };
-    deadbandInput.addEventListener("input", validateDeadband);
-    deadbandInput.addEventListener("change", () => {
+    deadbandInput?.addEventListener("input", validateDeadband);
+    deadbandInput?.addEventListener("change", () => {
       const raw = validateDeadband();
       if (raw === null) return;
       deadbandInput.value = displayDeadband(raw, presentation);
