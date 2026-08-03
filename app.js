@@ -726,6 +726,7 @@ function renderFields() {
       elements.fields.append(colourRow);
     }
   }
+  refreshManifestFieldControls();
   enableRequiredWidgetFields();
 }
 function selectedFields() {
@@ -1105,10 +1106,20 @@ function bindBuiltInMenuWidget(parsed) {
 }
 
 function createManifestControl(definition, key, option) {
-  const input = document.createElement(option.type === "select" ? "select" : "input");
+  const input = document.createElement(
+    option.type === "select" || option.type === "field" ? "select" : "input",
+  );
   input.dataset.manifestWidget = definition.widget.id;
   input.dataset.manifestOption = key;
-  if (option.type === "select") {
+  if (option.type === "field") {
+    const choice = document.createElement("option");
+    choice.value = option.default ?? "";
+    const numericId = Number(choice.value);
+    choice.textContent = Number.isInteger(numericId) && numericId >= 32 && numericId <= 49
+      ? `RC${numericId - 31}` : String(choice.value);
+    input.append(choice);
+    input.value = choice.value;
+  } else if (option.type === "select") {
     const values = (option.values ?? "").split(",")
       .map((value) => value.trim()).filter(Boolean);
     if (!values.length) {
@@ -1135,6 +1146,40 @@ function createManifestControl(definition, key, option) {
   }
   definition.controls.set(key, input);
   return input;
+}
+
+function refreshManifestFieldControls() {
+  if (!capabilities.length) return;
+  for (const definition of [...manifestWidgets.values(), ...builtInMenuWidgets.values()]) {
+    for (const [key, option] of definition.options) {
+      if (option.type !== "field") continue;
+      const control = definition.controls.get(key);
+      if (!control) continue;
+      const stored = lastProfileSections
+        ?.get(definition.widget.section)?.[key];
+      const previous = control.value.trim() || String(stored ?? "").trim();
+      const numericId = Number(previous);
+      const selected = Number.isInteger(numericId)
+        ? capabilities.find((field) => field.id === numericId)
+        : capabilities.find((field) => field.name.toUpperCase() === previous.toUpperCase());
+      control.replaceChildren();
+      for (const field of capabilities) {
+        const choice = document.createElement("option");
+        choice.value = String(field.id);
+        choice.textContent = field.name;
+        control.append(choice);
+      }
+      if (selected) {
+        control.value = String(selected.id);
+      } else if (previous) {
+        const unavailable = document.createElement("option");
+        unavailable.value = previous;
+        unavailable.textContent = `${previous} (unavailable)`;
+        control.prepend(unavailable);
+        control.value = previous;
+      }
+    }
+  }
 }
 
 function attachManifestPreview(definition) {

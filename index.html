@@ -54,7 +54,7 @@
       <div class="widget-grid">
         <fieldset class="widget-card collapsed" data-widget-card="ahi" data-widget-title="AHI"><legend><label class="widget-enable"><input id="ahiVisible" type="checkbox" checked> AHI</label><span class="widget-summary">Enabled · 30 FPS</span><button type="button" class="widget-collapse-toggle" aria-expanded="false" aria-controls="ahiCardBody" aria-label="Show AHI settings"></button></legend>
           <div id="ahiCardBody" class="widget-card-body">
-          <label>Pitch field<input id="ahiPitch" value="PITCH"></label><label>Roll field<input id="ahiRoll" value="ROLL"></label>
+          <label>Pitch field<select id="ahiPitch"><option value="PITCH">PITCH</option></select></label><label>Roll field<select id="ahiRoll"><option value="ROLL">ROLL</option></select></label>
           <label>Centre X (0–10000)<input id="ahiX" type="number" min="0" max="10000" value="5000"></label>
           <label>Centre Y (0–10000)<input id="ahiY" type="number" min="0" max="10000" value="5000"></label>
           <label>Width<input id="ahiWidth" type="number" min="1" max="10000" value="4000"></label>
@@ -75,8 +75,8 @@
         <fieldset class="widget-card collapsed" data-widget-card="sticks" data-widget-title="Sticks"><legend><label class="widget-enable"><input id="sticksVisible" type="checkbox" checked> Sticks</label><span class="widget-summary">Enabled · 30 FPS</span><button type="button" class="widget-collapse-toggle" aria-expanded="false" aria-controls="sticksCardBody" aria-label="Show Sticks settings"></button></legend>
           <div id="sticksCardBody" class="widget-card-body">
           <label>Transmitter mode<select id="sticksMode"><option value="2">Mode 2</option><option value="1">Mode 1</option></select></label>
-          <label>Roll field<input id="sticksRoll" value="RC1"></label><label>Pitch field<input id="sticksPitch" value="RC2"></label>
-          <label>Yaw field<input id="sticksYaw" value="RC3"></label><label>Throttle field<input id="sticksThrottle" value="RC4"></label>
+          <label>Roll field<select id="sticksRoll"><option value="RC1">RC1</option></select></label><label>Pitch field<select id="sticksPitch"><option value="RC2">RC2</option></select></label>
+          <label>Yaw field<select id="sticksYaw"><option value="RC3">RC3</option></select></label><label>Throttle field<select id="sticksThrottle"><option value="RC4">RC4</option></select></label>
           <label>X position<input id="sticksX" type="number" value="1340"></label><label>Y position<input id="sticksY" type="number" value="750"></label>
           <label>Size (%)<input id="sticksSize" type="number" min="25" max="200" value="100"></label>
           <label>Background opacity<input id="sticksBackgroundOpacity" type="number" min="0" max="100" value="50"> %</label>
@@ -139,6 +139,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=68"></script>
+  <script type="module" src="./app.js?v=69"></script>
 </body>
 </html>
