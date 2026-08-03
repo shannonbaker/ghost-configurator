@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=49">
+  <link rel="stylesheet" href="./styles.css?v=50">
 </head>
 <body>
   <main>
@@ -127,15 +127,23 @@
     <section class="panel fields-panel config-page" data-config-page="fields">
       <div class="section-heading">
         <div><p class="eyebrow">STREAM SUBSCRIPTIONS</p><div class="heading-title"><h2>Fields</h2><button id="load" disabled>Load GHOST fields</button></div></div>
-        <div class="heading-tools">
-          <label class="compact-toggle"><input id="hideInactive" type="checkbox"> Hide fields not On</label>
-          <span id="selection">0 fields required</span>
-        </div>
+        <span id="selection">0 fields required</span>
+      </div>
+      <div class="field-summary">
+        <div><small>Active</small><strong id="fieldActiveCount">0</strong></div>
+        <div><small>Catalogue</small><strong id="fieldCatalogueCount">0</strong></div>
+        <div><small>Combined requests</small><strong id="fieldRequestTotal">0 Hz</strong></div>
+        <div><small>Connection</small><strong id="fieldConnectionState">Offline</strong></div>
+      </div>
+      <div class="field-toolbar">
+        <label>Search<input id="fieldSearch" type="search" placeholder="Name or field ID"></label>
+        <label>Show<select id="fieldScope"><option value="active">Active</option><option value="all">All catalogue fields</option><option value="available">Available only</option></select></label>
+        <label>Group<select id="fieldGroup"><option value="all">All groups</option><option value="attitude">Attitude</option><option value="gps">GPS &amp; navigation</option><option value="power">Battery &amp; power</option><option value="rc">RC channels</option><option value="state">Flight state &amp; other</option></select></label>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>On</th><th>Field</th><th>Widget-requested rate</th><th>Deadband</th><th>FC limit</th></tr></thead>
-          <tbody id="fields"><tr class="empty"><td colspan="5">Connect and load a flight controller.</td></tr></tbody>
+          <thead><tr><th>On</th><th>Field</th><th>Required by</th><th>Requested</th><th>Deadband</th><th>FC limit</th><th>State</th></tr></thead>
+          <tbody id="fields"><tr class="empty"><td colspan="7">Connect and load a flight controller.</td></tr></tbody>
         </table>
       </div>
       <div class="footer-actions"><p>On fields are derived from enabled widgets. MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
@@ -154,6 +162,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=79"></script>
+  <script type="module" src="./app.js?v=80"></script>
 </body>
 </html>

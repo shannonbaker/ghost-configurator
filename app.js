@@ -643,12 +643,43 @@ function startStreamStats() {
   poll();
 }
 
+function fieldGroupName(name) {
+  if (/^RC(?:[1-9]|1[0-8])$/.test(name)) return "rc";
+  if (/^(PITCH|ROLL|HEADING|ANGULAR_|BF_PID_)/.test(name)) return "attitude";
+  if (/(GPS|LATITUDE|LONGITUDE|HOME|ALTITUDE|SPEED|COURSE|DISTANCE)/.test(name)) return "gps";
+  if (/(BATTERY|VOLTAGE|CURRENT|MAH|POWER|CELL)/.test(name)) return "power";
+  return "state";
+}
+
+function fieldOwners(capability) {
+  if (!vrxInventory) return [];
+  const name = capability.name.toUpperCase();
+  const owners = [];
+  const add = (owner) => { if (!owners.includes(owner)) owners.push(owner); };
+  const selected = (control) => catalogueFieldName(control?.value) === name;
+  if (elements.ahiVisible.checked &&
+      (selected(elements.ahiPitch) || selected(elements.ahiRoll))) add("AHI");
+  if (elements.sticksVisible.checked && [elements.sticksRoll, elements.sticksPitch,
+      elements.sticksYaw, elements.sticksThrottle].some(selected)) add("RC Sticks");
+  for (const definition of manifestWidgets.values()) {
+    if (!definition.visibleControl.checked) continue;
+    for (const [key, option] of definition.options) {
+      if (option.type !== "field") continue;
+      if (catalogueFieldName(definition.controls.get(key)?.value) !== name) continue;
+      add(option.subscription === "runtime"
+        ? `${definition.widget.title} · on demand` : definition.widget.title);
+    }
+  }
+  return owners;
+}
+
 function renderFields() {
   elements.fields.replaceChildren();
   const required = requiredWidgetFields();
   for (const capability of capabilities) {
     const current = configured.get(capability.name);
     const isRequired = required.has(capability.name.toUpperCase());
+    const owners = fieldOwners(capability);
     const defaultDeadband = /^RC(?:[1-9]|1[0-8])$/.test(capability.name)
       ? 3 : (["PITCH", "ROLL"].includes(capability.name) ? 2 : 0);
     const deadband = fieldDeadbands.has(capability.id)
@@ -665,11 +696,14 @@ function renderFields() {
     row.innerHTML = `
       <td><input class="enabled" type="checkbox" ${isRequired ? "checked" : ""} disabled aria-label="${capability.name} ${isRequired ? "required by an enabled widget" : "not required by enabled widgets"}" title="Controlled by enabled widgets"></td>
       <td><span class="field-name">${capability.name}</span><small>ID ${capability.id}</small>${numeric ? '<button class="field-colour-toggle" type="button" aria-expanded="false">Colour thresholds</button>' : ""}</td>
+      <td class="field-owners">${owners.length ? owners.map((owner) => `<span>${owner}</span>`).join("") : '<span class="muted">None</span>'}</td>
       <td><input class="rate" type="number" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}" disabled aria-label="${capability.name} widget-requested rate" title="Controlled by enabled widget requirements"><span>Hz</span></td>
       <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div><small>${deadband} raw</small></div></td>
-      <td>${capability.maxHz} Hz</td>`;
+      <td>${capability.maxHz} Hz</td>
+      <td><span class="field-state ${isRequired ? "active" : "available"}">${isRequired ? "Active" : "Available"}</span></td>`;
     row.dataset.name = capability.name;
     row.dataset.id = capability.id;
+    row.dataset.group = fieldGroupName(capability.name);
     row.dataset.deadbandFactor = presentation.factor;
     row.dataset.deadbandDecimals = presentation.decimals;
     const deadbandInput = row.querySelector(".deadband");
@@ -695,7 +729,7 @@ function renderFields() {
       const colourRow = document.createElement("tr");
       colourRow.className = "field-colour-row";
       colourRow.hidden = true;
-      colourRow.innerHTML = `<td></td><td colspan="4"><div class="field-colour-controls">
+      colourRow.innerHTML = `<td></td><td colspan="6"><div class="field-colour-controls">
         <label class="check"><input class="colour-enabled" type="checkbox" ${colourPolicy.enabled ? "checked" : ""}> Enable colour thresholds</label>
         <label>Direction<select class="colour-direction"><option value="low" ${colourPolicy.direction === "low" ? "selected" : ""}>Low is bad</option><option value="high" ${colourPolicy.direction === "high" ? "selected" : ""}>High is bad</option></select></label>
         <label class="threshold green">Green<input class="colour-green" type="number" step="${colourPresentation.step}" value="${thresholdValue(colourPolicy.green)}"><span>${colourPresentation.unit}</span></label>
@@ -759,9 +793,23 @@ function selectedFields() {
 function updateSummary() {
   const selected = selectedFields();
   elements.selection.textContent = `${selected.length} field${selected.length === 1 ? "" : "s"} required`;
+  elements.fieldActiveCount.textContent = selected.length;
+  elements.fieldCatalogueCount.textContent = capabilities.length;
+  elements.fieldRequestTotal.textContent =
+    `${selected.reduce((sum, field) => sum + field.rateHz, 0)} Hz`;
+  elements.fieldConnectionState.textContent = session ? "FC connected" : "Offline";
+  const search = elements.fieldSearch.value.trim().toUpperCase();
+  const scope = elements.fieldScope.value;
+  const group = elements.fieldGroup.value;
   for (const row of elements.fields.querySelectorAll("tr[data-id]")) {
     const onCheckbox = row.querySelector(".enabled");
-    const filtered = Boolean(onCheckbox && elements.hideInactive.checked && !onCheckbox.checked);
+    const active = Boolean(onCheckbox?.checked);
+    const matchesScope = scope === "all" || (scope === "active" && active) ||
+      (scope === "available" && !active);
+    const matchesGroup = group === "all" || row.dataset.group === group;
+    const matchesSearch = !search || row.dataset.name.toUpperCase().includes(search) ||
+      row.dataset.id.includes(search);
+    const filtered = !(matchesScope && matchesGroup && matchesSearch);
     row.classList.toggle("field-filtered", filtered);
     row._colourRow?.classList.toggle("field-filtered", filtered);
   }
@@ -856,6 +904,7 @@ function catalogueFieldName(value) {
 
 function requiredWidgetFields() {
   const required = new Set();
+  if (!vrxInventory) return required;
   const add = (id) => {
     const name = catalogueFieldName(elements[id].value);
     if (name) required.add(name);
@@ -893,6 +942,7 @@ function requiredWidgetFields() {
 
 function manifestRequiredFieldRates() {
   const rates = new Map();
+  if (!vrxInventory) return rates;
   const setRate = (name, rate) => {
     const numericRate = Number(rate);
     if (!Number.isFinite(numericRate) || numericRate <= 0) return;
@@ -951,6 +1001,23 @@ function enableRequiredWidgetFields(notify = false) {
     }
     onCheckbox.setAttribute("aria-label", `${row.dataset.name} ${shouldBeEnabled
       ? "required by an enabled widget" : "not required by enabled widgets"}`);
+    const capability = capabilities.find((field) => field.id === Number(row.dataset.id));
+    const ownerCell = row.querySelector(".field-owners");
+    if (capability && ownerCell) {
+      const owners = fieldOwners(capability);
+      ownerCell.replaceChildren();
+      for (const owner of owners.length ? owners : ["None"]) {
+        const label = document.createElement("span");
+        label.textContent = owner;
+        if (!owners.length) label.className = "muted";
+        ownerCell.append(label);
+      }
+    }
+    const state = row.querySelector(".field-state");
+    if (state) {
+      state.textContent = shouldBeEnabled ? "Active" : "Available";
+      state.className = `field-state ${shouldBeEnabled ? "active" : "available"}`;
+    }
     if (shouldBeEnabled) {
       let changed = false;
       const requestedRate = requestedRates.get(name);
@@ -1431,6 +1498,7 @@ function applyVrxInventory() {
     definition.card.hidden = !available;
     if (definition.preview) definition.preview.hidden = !available;
   }
+  if (capabilities.length) enableRequiredWidgetFields();
   refreshLayout();
 }
 
@@ -2048,6 +2116,7 @@ async function disconnect() {
   elements.boardIdentity.textContent = "—";
   elements.interfaceIdentity.textContent = "—";
   elements.selection.textContent = "0 fields required";
+  updateSummary();
   setConnected(false);
   setStatus("Disconnected.");
 }
@@ -2063,7 +2132,9 @@ elements.connect.addEventListener("click", async () => {
 });
 elements.load.addEventListener("click", loadFields);
 elements.apply.addEventListener("click", applyFields);
-elements.hideInactive.addEventListener("change", updateSummary);
+elements.fieldSearch.addEventListener("input", updateSummary);
+elements.fieldScope.addEventListener("change", updateSummary);
+elements.fieldGroup.addEventListener("change", updateSummary);
 elements.loadProfile.addEventListener("click", loadProfile);
 elements.connectVrx.addEventListener("click", connectVrx);
 elements.reloadWidgets.addEventListener("click", reloadWidgets);
