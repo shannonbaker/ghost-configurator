@@ -686,30 +686,28 @@ function renderFields() {
     const presentation = deadbandPresentation(capability);
     const row = document.createElement("tr");
     row.innerHTML = `
+      <td><input class="enabled" type="checkbox" ${isRequired ? "checked" : ""} disabled hidden aria-label="${capability.name} ${isRequired ? "required by an enabled widget" : "not required by enabled widgets"}"><span class="field-state ${isRequired ? "active" : "available"}">${isRequired ? "Active" : "Available"}</span></td>
       <td><span class="field-name">${capability.name}</span></td>
       <td class="field-id">${capability.id}</td>
       <td class="field-owners">${owners.length ? owners.map((owner) => `<span>${owner}</span>`).join("") : '<span class="muted">None</span>'}</td>
       <td><input class="rate" type="hidden" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}"><strong class="rate-value">${isRequired ? `${current?.rateHz ?? Math.min(10, capability.maxHz)} Hz` : "—"}</strong></td>
       <td>${capability.maxHz} Hz</td>
-      <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div><small>${deadband} raw</small></div></td>
-      <td><input class="enabled" type="checkbox" ${isRequired ? "checked" : ""} disabled hidden aria-label="${capability.name} ${isRequired ? "required by an enabled widget" : "not required by enabled widgets"}"><span class="field-state ${isRequired ? "active" : "available"}">${isRequired ? "Active" : "Available"}</span></td>`;
+      <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div></div></td>`;
     row.dataset.name = capability.name;
     row.dataset.id = capability.id;
     row.dataset.group = fieldGroupName(capability.name);
     row.dataset.deadbandFactor = presentation.factor;
     row.dataset.deadbandDecimals = presentation.decimals;
     const deadbandInput = row.querySelector(".deadband");
-    const rawReadout = row.querySelector(".deadband-control small");
-    const updateRawReadout = () => {
+    const validateDeadband = () => {
       const raw = rawDeadband(deadbandInput.value, presentation);
-      rawReadout.textContent = raw === null ? "invalid" : `${raw} raw`;
       deadbandInput.setCustomValidity(raw === null
         ? `Use increments of ${displayDeadband(1, presentation)} ${presentation.unit}` : "");
       return raw;
     };
-    deadbandInput.addEventListener("input", updateRawReadout);
+    deadbandInput.addEventListener("input", validateDeadband);
     deadbandInput.addEventListener("change", () => {
-      const raw = updateRawReadout();
+      const raw = validateDeadband();
       if (raw === null) return;
       deadbandInput.value = displayDeadband(raw, presentation);
       fieldDeadbands.set(capability.id, raw);
@@ -738,7 +736,8 @@ function updateSummary() {
   elements.fieldCatalogueCount.textContent = capabilities.length;
   elements.fieldRequestTotal.textContent =
     `${selected.reduce((sum, field) => sum + field.rateHz, 0)} Hz`;
-  elements.fieldConnectionState.textContent = session ? "FC connected" : "Offline";
+  elements.fieldConnectionState.textContent = session
+    ? elements.fcIdentity.textContent : "Offline";
   const search = elements.fieldSearch.value.trim().toUpperCase();
   const scope = elements.fieldScope.value;
   const group = elements.fieldGroup.value;

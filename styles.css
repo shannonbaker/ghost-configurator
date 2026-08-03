@@ -126,10 +126,15 @@ table { width:100%; border-collapse:collapse; }
 th,td { padding:13px 24px; border-top:1px solid var(--line); text-align:left; }
 th { color:var(--muted); font-size:12px; font-weight:650; text-transform:uppercase; letter-spacing:.07em; }
 td:first-child,th:first-child { width:58px; }
-.stream-fields-table td:first-child,.stream-fields-table th:first-child { width:auto; }
+.stream-fields-table td:first-child,.stream-fields-table th:first-child { width:82px; }
+.stream-fields-table th,.stream-fields-table td { padding:8px 12px; font-size:11px; }
+.stream-fields-table .field-name { font-size:12px; white-space:nowrap; }
 .stream-fields-table .field-id { color:var(--muted); font:600 11px ui-monospace,monospace; }
 .stream-fields-table .rate-value { font-size:12px; white-space:nowrap; }
 .stream-fields-table th,.stream-fields-table td { vertical-align:middle; }
+.stream-fields-table .field-owners { min-width:120px; }
+.stream-fields-table .deadband-control input { width:62px; margin-right:4px; padding:5px 6px; }
+.stream-fields-table .field-state { padding:2px 6px; font-size:8px; }
 .field-name { display:block; font-weight:700; }
 .field-name+small { display:block; font-size:11px; }
 input[type="checkbox"] { width:18px; height:18px; accent-color:var(--accent); }
