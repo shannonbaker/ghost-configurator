@@ -21,7 +21,7 @@ const elements = Object.fromEntries(
 );
 
 let session = null;
-let capabilities = [];
+let capabilities = readCachedFieldCatalogue();
 let configured = new Map();
 let ghostApi = null;
 let ghostDpApi = null;
@@ -60,6 +60,20 @@ let vrxApi = null;
 let vrxInventory = null;
 
 const profileAvailable = () => Boolean(vrxApi || (session && ghostApi && widgetProfileSupported));
+
+function readCachedFieldCatalogue() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("ghost-field-catalogue") || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((field) => Number.isInteger(field?.id) && field.id > 0 &&
+      typeof field.name === "string" && /^[A-Z][A-Z0-9_]{0,31}$/.test(field.name));
+  } catch (_) { return []; }
+}
+
+function cacheFieldCatalogue() {
+  try { localStorage.setItem("ghost-field-catalogue", JSON.stringify(capabilities)); }
+  catch (_) {}
+}
 
 const numeric = (id, fallback = 0) => {
   const value = Number(elements[id]?.value);
@@ -1347,6 +1361,7 @@ async function loadWidgetManifests() {
       if (truthy(manifest.widget.builtin)) bindBuiltInMenuWidget(manifest);
       else renderManifestWidget(manifest);
     }
+    refreshManifestFieldControls();
     applyVrxInventory();
     refreshLayout();
   } catch (error) {
@@ -1447,7 +1462,20 @@ function populateManifestProfiles(sections) {
       const control = definition.controls.get(key);
       const value = profileOptionValue(profile?.[key] ?? option.default, option);
       if (control.type === "checkbox") control.checked = truthy(value);
-      else if (value !== undefined) control.value = value;
+      else if (value !== undefined) {
+        if (option.type === "field" && control.tagName === "SELECT" &&
+            ![...control.options].some((choice) => choice.value === String(value))) {
+          const choice = document.createElement("option");
+          choice.value = String(value);
+          const numericId = Number(value);
+          const capability = Number.isInteger(numericId)
+            ? capabilities.find((field) => field.id === numericId) : null;
+          choice.textContent = capability?.name ??
+            (numericId >= 32 && numericId <= 49 ? `RC${numericId - 31}` : String(value));
+          control.append(choice);
+        }
+        control.value = value;
+      }
     }
   }
   populateStickMenuProfiles(sections);
@@ -1880,6 +1908,7 @@ async function loadFields() {
     if (capabilities.length === 0) {
       throw new Error("This firmware did not return any GHOST fields. Confirm it includes the GHOST field patch.");
     }
+    cacheFieldCatalogue();
     renderFields();
     elements.apply.disabled = false;
     setStatus(`Loaded ${capabilities.length} supported fields.`, "good");
@@ -1960,11 +1989,12 @@ async function disconnect() {
     await session.close({ reboot: true }).catch(() => {});
     session = null;
   }
-  capabilities = [];
+  capabilities = readCachedFieldCatalogue();
   ghostApi = null;
   ghostDpApi = null;
   widgetProfileSupported = false;
   configured.clear();
+  refreshManifestFieldControls();
   elements.fields.replaceChildren();
   elements.fcIdentity.textContent = "Not connected";
   elements.boardIdentity.textContent = "—";
