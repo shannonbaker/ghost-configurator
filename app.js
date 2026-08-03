@@ -1380,6 +1380,8 @@ function applyVrxInventory() {
   const installed = new Set(
     vrxInventory?.widgets.map((widget) => widget.id) ?? [],
   );
+  elements.layoutEmptyState.hidden = Boolean(vrxInventory);
+  elements.layoutBps.hidden = !vrxInventory;
   for (const id of ["ahi", "sticks", "status"]) {
     const card = document.querySelector(`[data-widget-card="${id}"]`);
     if (card) card.hidden = !installed.has(id);

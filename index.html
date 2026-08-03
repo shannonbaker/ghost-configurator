@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=46">
+  <link rel="stylesheet" href="./styles.css?v=47">
 </head>
 <body>
   <main>
@@ -56,6 +56,7 @@
           <label class="check"><input id="layoutSnap" type="checkbox" checked> Snap to 10 px</label>
         </div>
         <div id="layoutCanvas" class="layout-canvas" aria-label="Widget layout preview">
+          <div id="layoutEmptyState" class="layout-empty-state"><strong>No VRX inventory</strong><span>Connect the video receiver to preview installed widgets.</span></div>
           <span class="layout-guide vertical"></span><span class="layout-guide horizontal"></span>
           <div id="layoutAhi" class="layout-widget ahi" data-widget="ahi" tabindex="0"><span>AHI</span><i></i><button type="button" class="layout-anchor-toggle" data-widget="ahi" aria-label="Lock AHI position and resize from centre" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path class="lock-closed" d="M7 11V7a5 5 0 0 1 10 0v4"></path><path class="lock-open" d="M7 11V7a5 5 0 0 1 9.8-1.4"></path></svg></button><button type="button" class="layout-resize-handle" data-widget="ahi" aria-label="Resize AHI"></button></div>
           <div id="layoutSticks" class="layout-widget sticks" data-widget="sticks" tabindex="0"><span>STICKS</span><b></b><b></b><button type="button" class="layout-anchor-toggle" data-widget="sticks" aria-label="Lock Sticks position and resize from centre" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path class="lock-closed" d="M7 11V7a5 5 0 0 1 10 0v4"></path><path class="lock-open" d="M7 11V7a5 5 0 0 1 9.8-1.4"></path></svg></button><button type="button" class="layout-resize-handle" data-widget="sticks" aria-label="Resize Sticks"></button></div>
@@ -153,6 +154,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=77"></script>
+  <script type="module" src="./app.js?v=78"></script>
 </body>
 </html>
