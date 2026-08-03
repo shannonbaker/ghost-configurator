@@ -692,7 +692,8 @@ function renderFields() {
       <td class="field-owners">${owners.length ? owners.map((owner) => `<span>${owner}</span>`).join("") : '<span class="muted">None</span>'}</td>
       <td><input class="rate" type="hidden" min="1" max="${capability.maxHz}" value="${current?.rateHz ?? Math.min(10, capability.maxHz)}"><strong class="rate-value">${isRequired ? `${current?.rateHz ?? Math.min(10, capability.maxHz)} Hz` : "—"}</strong></td>
       <td>${capability.maxHz} Hz</td>
-      <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div></div></td>`;
+      <td><div class="deadband-control"><div><input class="deadband" type="number" min="0" max="${displayDeadband(255, presentation)}" step="${displayDeadband(1, presentation)}" value="${displayDeadband(deadband, presentation)}"><span>${presentation.unit}</span></div></div></td>
+      <td class="deadband-range"><span>0–${displayDeadband(255, presentation)} ${presentation.unit}</span><small>step ${displayDeadband(1, presentation)} ${presentation.unit}</small></td>`;
     row.dataset.name = capability.name;
     row.dataset.id = capability.id;
     row.dataset.group = fieldGroupName(capability.name);

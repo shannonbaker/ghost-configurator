@@ -133,7 +133,10 @@ td:first-child,th:first-child { width:58px; }
 .stream-fields-table .rate-value { font-size:12px; white-space:nowrap; }
 .stream-fields-table th,.stream-fields-table td { vertical-align:middle; }
 .stream-fields-table .field-owners { min-width:120px; }
-.stream-fields-table .deadband-control input { width:62px; margin-right:4px; padding:5px 6px; }
+.stream-fields-table .deadband-control input { width:92px; margin-right:5px; padding:5px 7px; }
+.stream-fields-table .deadband-range { min-width:130px; white-space:nowrap; }
+.stream-fields-table .deadband-range span,.stream-fields-table .deadband-range small { display:block; }
+.stream-fields-table .deadband-range small { color:var(--muted); font-size:9px; }
 .stream-fields-table .field-state { padding:2px 6px; font-size:8px; }
 .field-name { display:block; font-weight:700; }
 .field-name+small { display:block; font-size:11px; }
