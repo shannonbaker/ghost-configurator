@@ -1999,5 +1999,5 @@ renderVideoSystemFields();
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=77").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=78").catch(() => {});
 }
