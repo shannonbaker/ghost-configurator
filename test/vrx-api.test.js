@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { VrxApi } from "../vrx-api.js";
+import { FcRoutedVrxApi, VrxApi } from "../vrx-api.js";
 
 test("reads VRX inventory and profile through the loopback bridge", async () => {
   const calls = [];
@@ -29,4 +29,28 @@ test("uploads a newline-terminated VRX profile", async () => {
   assert.equal(request.method, "PUT");
   assert.ok(request.body.endsWith("\n"));
   assert.equal(result.revision, 8);
+});
+
+test("reads chunked VRX inventory through the FC relay", async () => {
+  const inventory = new TextEncoder().encode(JSON.stringify({
+    schemaVersion: 1, widgets: [{ id: "ahi" }],
+  }));
+  let pendingExchange = 0;
+  const session = {
+    async requestMsp(_command, payload) {
+      const type = payload[2];
+      if (type === 0x30) {
+        pendingExchange = payload[8] | (payload[9] << 8);
+        return Uint8Array.of(pendingExchange & 0xff, pendingExchange >> 8);
+      }
+      const response = new Uint8Array(19 + inventory.length);
+      response.set([0x80, 0x10, 0x31, 0x02, 0x02, 0x03, 0, 0,
+        pendingExchange & 0xff, pendingExchange >> 8, 0, 1, 0,
+        inventory.length, 0, 0, 0, inventory.length, 0]);
+      response.set(inventory, 19);
+      return response;
+    },
+  };
+  const result = await new FcRoutedVrxApi(session).inventory();
+  assert.equal(result.widgets[0].id, "ahi");
 });

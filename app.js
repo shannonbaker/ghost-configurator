@@ -9,7 +9,7 @@ import {
   compactManifestOptions, parseManifestDependencies,
   resolveManifestDependencies,
 } from "./profile.js";
-import { VrxApi } from "./vrx-api.js";
+import { FcRoutedVrxApi, VrxApi } from "./vrx-api.js";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
   ahiSizeFromPixels, aspectConstrainedSize,
@@ -1046,6 +1046,7 @@ async function connect() {
       await loadFields();
     }
     if (ghostApi && streamStatsSupported) startStreamStats();
+    await connectVrx(true);
   } catch (error) {
     setStatus(error.message, "bad");
     if (session?.port) await session.close().catch(() => {});
@@ -1453,7 +1454,7 @@ function applyVrxInventory() {
   refreshLayout();
 }
 
-async function connectVrx() {
+async function connectVrx(automatic = false) {
   if (vrxApi) {
     vrxApi = null;
     vrxInventory = null;
@@ -1464,8 +1465,8 @@ async function connectVrx() {
   }
   elements.connectVrx.disabled = true;
   try {
-    const api = new VrxApi();
-    await api.status();
+    const api = session ? new FcRoutedVrxApi(session) : new VrxApi();
+    if (!session) await api.status();
     const inventory = await api.inventory();
     if (inventory.schemaVersion !== 1 || !Array.isArray(inventory.widgets))
       throw new Error("VRX returned an unsupported widget inventory.");
@@ -1475,7 +1476,7 @@ async function connectVrx() {
     applyVrxInventory();
     setConnected(Boolean(session));
     await loadProfile();
-    setStatus(`Connected to VRX · ${inventory.widgets.length} installed widgets.`, "good");
+    setStatus(`Connected to VRX${session ? " through FC USB" : ""} · ${inventory.widgets.length} installed widgets.`, "good");
   } catch (error) {
     vrxApi = null;
     vrxInventory = null;
@@ -1483,7 +1484,7 @@ async function connectVrx() {
       ? " Allow Local Network Access for this site in the browser, then try again."
       : "";
     const separator = permissionHint && !/[.!?]$/.test(error.message) ? "." : "";
-    setStatus(`VRX bridge: ${error.message}${separator}${permissionHint}`, "bad");
+    if (!automatic) setStatus(`${session ? "FC-routed VRX" : "VRX bridge"}: ${error.message}${separator}${permissionHint}`, "bad");
   } finally {
     elements.connectVrx.disabled = false;
     setConnected(Boolean(session));
@@ -2044,6 +2045,11 @@ async function disconnect() {
   capabilities = readCachedFieldCatalogue();
   ghostApi = null;
   ghostDpApi = null;
+  if (vrxApi instanceof FcRoutedVrxApi) {
+    vrxApi = null;
+    vrxInventory = null;
+    applyVrxInventory();
+  }
   widgetProfileSupported = false;
   configured.clear();
   refreshManifestFieldControls();
@@ -2094,7 +2100,7 @@ document.addEventListener("keydown", (event) => {
 });
 window.addEventListener("resize", closeFieldHelp);
 elements.loadProfile.addEventListener("click", loadProfile);
-elements.connectVrx.addEventListener("click", connectVrx);
+elements.connectVrx.addEventListener("click", () => connectVrx());
 elements.reloadWidgets.addEventListener("click", reloadWidgets);
 elements.applyProfile.addEventListener("click", queueProfileSave);
 for (const id of ["ahiPitch", "ahiRoll", "sticksRoll", "sticksPitch", "sticksYaw",
