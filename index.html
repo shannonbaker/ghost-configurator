@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=56">
+  <link rel="stylesheet" href="./styles.css?v=57">
 </head>
 <body>
   <main>
@@ -126,17 +126,9 @@
 
     <section class="panel fields-panel config-page" data-config-page="fields">
       <div class="section-heading">
-        <div><p class="eyebrow">STREAM SUBSCRIPTIONS</p><div class="heading-title"><h2>Fields</h2><button id="load" disabled>Load GHOST fields</button><button id="fieldsHelpToggle" type="button" aria-expanded="false" aria-controls="fieldsHelp">Help</button></div></div>
+        <div><p class="eyebrow">STREAM SUBSCRIPTIONS</p><div class="heading-title"><h2>Fields</h2><button id="load" disabled>Load GHOST fields</button></div></div>
         <span id="selection">0 fields required</span>
       </div>
-      <aside id="fieldsHelp" class="context-help" hidden>
-        <div><strong>State</strong><span>Active fields are currently required by an enabled VRX widget. Available fields are supported by the FC but are not subscribed.</span></div>
-        <div><strong>Required by</strong><span>Shows which widget owns the request. “On demand” fields are subscribed only while that feature, such as RC Menu navigation, is active.</span></div>
-        <div><strong>Requested rate</strong><span>The highest rate requested by all owning widgets. Change it in the widget configuration; it is intentionally read-only here.</span></div>
-        <div><strong>FC limit</strong><span>The maximum update rate advertised by the connected flight controller.</span></div>
-        <div><strong>Deadband</strong><span>The minimum meaningful value change before an update is sent. Discrete state and count fields do not use deadband.</span></div>
-        <div><strong>Connections</strong><span>The FC supplies the field catalogue. The VRX supplies installed widgets and their subscription requirements; both are needed for the complete active view.</span></div>
-      </aside>
       <div class="field-summary">
         <div><small>Active</small><strong id="fieldActiveCount">0</strong></div>
         <div><small>Catalogue</small><strong id="fieldCatalogueCount">0</strong></div>
@@ -150,10 +142,19 @@
       </div>
       <div class="table-wrap">
         <table class="stream-fields-table">
-          <thead><tr><th>State</th><th>Name</th><th>Required by</th><th>Requested rate</th><th>FC limit</th><th>Deadband</th><th>Accepted range / step</th></tr></thead>
+          <thead><tr>
+            <th>State <button class="column-help" type="button" data-help="Active fields are required by an enabled VRX widget. Available fields are supported by the FC but are not currently subscribed." aria-label="Help for State">?</button></th>
+            <th>Name <button class="column-help" type="button" data-help="The friendly catalogue name advertised by the flight controller. Protocol field IDs remain internal." aria-label="Help for Name">?</button></th>
+            <th>Required by <button class="column-help" type="button" data-help="Widgets that own this field request. On-demand entries are subscribed only while that feature is active." aria-label="Help for Required by">?</button></th>
+            <th>Requested rate <button class="column-help" type="button" data-help="The highest update rate requested by all owning widgets. Change this in the widget configuration; it is read-only here." aria-label="Help for Requested rate">?</button></th>
+            <th>FC limit <button class="column-help" type="button" data-help="The maximum update rate supported by the connected flight controller for this field." aria-label="Help for FC limit">?</button></th>
+            <th>Deadband <button class="column-help" type="button" data-help="The minimum meaningful value change required before an update is sent. Discrete state and count fields do not use deadband." aria-label="Help for Deadband">?</button></th>
+            <th>Accepted range / step <button class="column-help" type="button" data-help="The valid deadband range and smallest selectable increment after applying the field's scale and unit." aria-label="Help for accepted range and step">?</button></th>
+          </tr></thead>
           <tbody id="fields"><tr class="empty"><td colspan="7">Connect and load a flight controller.</td></tr></tbody>
         </table>
       </div>
+      <div id="fieldHelpFlyout" class="field-help-flyout" role="tooltip" hidden></div>
       <div class="footer-actions"><p>On fields are derived from enabled widgets. MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
     </section>
 
@@ -170,6 +171,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=87"></script>
+  <script type="module" src="./app.js?v=88"></script>
 </body>
 </html>

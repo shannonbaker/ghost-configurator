@@ -2063,12 +2063,28 @@ elements.apply.addEventListener("click", applyFields);
 elements.fieldSearch.addEventListener("input", updateSummary);
 elements.fieldScope.addEventListener("change", updateSummary);
 elements.fieldGroup.addEventListener("change", updateSummary);
-elements.fieldsHelpToggle.addEventListener("click", () => {
-  const expanded = elements.fieldsHelp.hidden;
-  elements.fieldsHelp.hidden = !expanded;
-  elements.fieldsHelpToggle.setAttribute("aria-expanded", String(expanded));
-  elements.fieldsHelpToggle.textContent = expanded ? "Close help" : "Help";
+function closeFieldHelp() { elements.fieldHelpFlyout.hidden = true; }
+for (const button of document.querySelectorAll(".column-help")) {
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const flyout = elements.fieldHelpFlyout;
+    const wasOpen = !flyout.hidden && flyout.dataset.owner === button.ariaLabel;
+    closeFieldHelp();
+    if (wasOpen) return;
+    flyout.textContent = button.dataset.help;
+    flyout.dataset.owner = button.ariaLabel;
+    flyout.hidden = false;
+    const anchor = button.getBoundingClientRect();
+    const width = flyout.offsetWidth;
+    flyout.style.left = `${Math.max(8, Math.min(anchor.left, innerWidth - width - 8))}px`;
+    flyout.style.top = `${anchor.bottom + 7}px`;
+  });
+}
+document.addEventListener("click", closeFieldHelp);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeFieldHelp();
 });
+window.addEventListener("resize", closeFieldHelp);
 elements.loadProfile.addEventListener("click", loadProfile);
 elements.connectVrx.addEventListener("click", connectVrx);
 elements.reloadWidgets.addEventListener("click", reloadWidgets);
