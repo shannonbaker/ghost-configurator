@@ -739,8 +739,12 @@ function updateSummary() {
   elements.selection.textContent = `${selected.length} field${selected.length === 1 ? "" : "s"} required`;
   elements.fieldActiveCount.textContent = selected.length;
   elements.fieldCatalogueCount.textContent = capabilities.length;
-  elements.fieldRequestTotal.textContent =
-    `${selected.reduce((sum, field) => sum + field.rateHz, 0)} Hz`;
+  const consumers = new Set();
+  for (const field of selected) {
+    const capability = capabilities.find((candidate) => candidate.name === field.name);
+    if (capability) for (const owner of fieldOwners(capability)) consumers.add(owner);
+  }
+  elements.fieldConsumerCount.textContent = consumers.size;
   elements.fieldConnectionState.textContent = session
     ? elements.fcIdentity.textContent : "Offline";
   const search = elements.fieldSearch.value.trim().toUpperCase();
