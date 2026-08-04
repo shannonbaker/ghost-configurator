@@ -65,6 +65,8 @@ export class FcRoutedVrxApi {
   constructor(session) {
     this.session = session;
     this.exchangeId = 0;
+    this.lastTransactionAt = 0;
+    this.minimumTransactionIntervalMs = 100;
   }
 
   nextExchange() {
@@ -94,6 +96,9 @@ export class FcRoutedVrxApi {
   }
 
   async transact(requestType, responseType, body = new Uint8Array(), timeoutMs = 3000) {
+    const spacing = this.minimumTransactionIntervalMs -
+      (performance.now() - this.lastTransactionAt);
+    if (spacing > 0) await delay(spacing);
     const exchangeId = this.nextExchange();
     const accepted = await this.session.requestMsp(MSP_DISPLAYPORT,
       this.envelope(requestType, ENDPOINT_VRX, exchangeId, body), 1500);
@@ -107,7 +112,9 @@ export class FcRoutedVrxApi {
       const response = await this.session.requestMsp(MSP_DISPLAYPORT,
         this.envelope(RELAY_POLL, ENDPOINT_FC, pollId, u16(exchangeId)), 1200);
       if (response.length >= HEADER_SIZE && response[2] === RELAY_POLL_RESULT) continue;
-      return this.validate(response, responseType, exchangeId);
+      const result = this.validate(response, responseType, exchangeId);
+      this.lastTransactionAt = performance.now();
+      return result;
     }
     throw new Error("Timed out waiting for the VRX through the FC");
   }
