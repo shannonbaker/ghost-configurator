@@ -7,7 +7,7 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=55">
+  <link rel="stylesheet" href="./styles.css?v=56">
 </head>
 <body>
   <main>
@@ -126,9 +126,17 @@
 
     <section class="panel fields-panel config-page" data-config-page="fields">
       <div class="section-heading">
-        <div><p class="eyebrow">STREAM SUBSCRIPTIONS</p><div class="heading-title"><h2>Fields</h2><button id="load" disabled>Load GHOST fields</button></div></div>
+        <div><p class="eyebrow">STREAM SUBSCRIPTIONS</p><div class="heading-title"><h2>Fields</h2><button id="load" disabled>Load GHOST fields</button><button id="fieldsHelpToggle" type="button" aria-expanded="false" aria-controls="fieldsHelp">Help</button></div></div>
         <span id="selection">0 fields required</span>
       </div>
+      <aside id="fieldsHelp" class="context-help" hidden>
+        <div><strong>State</strong><span>Active fields are currently required by an enabled VRX widget. Available fields are supported by the FC but are not subscribed.</span></div>
+        <div><strong>Required by</strong><span>Shows which widget owns the request. “On demand” fields are subscribed only while that feature, such as RC Menu navigation, is active.</span></div>
+        <div><strong>Requested rate</strong><span>The highest rate requested by all owning widgets. Change it in the widget configuration; it is intentionally read-only here.</span></div>
+        <div><strong>FC limit</strong><span>The maximum update rate advertised by the connected flight controller.</span></div>
+        <div><strong>Deadband</strong><span>The minimum meaningful value change before an update is sent. Discrete state and count fields do not use deadband.</span></div>
+        <div><strong>Connections</strong><span>The FC supplies the field catalogue. The VRX supplies installed widgets and their subscription requirements; both are needed for the complete active view.</span></div>
+      </aside>
       <div class="field-summary">
         <div><small>Active</small><strong id="fieldActiveCount">0</strong></div>
         <div><small>Catalogue</small><strong id="fieldCatalogueCount">0</strong></div>
@@ -162,6 +170,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=86"></script>
+  <script type="module" src="./app.js?v=87"></script>
 </body>
 </html>

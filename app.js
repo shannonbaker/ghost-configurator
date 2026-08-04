@@ -2063,6 +2063,12 @@ elements.apply.addEventListener("click", applyFields);
 elements.fieldSearch.addEventListener("input", updateSummary);
 elements.fieldScope.addEventListener("change", updateSummary);
 elements.fieldGroup.addEventListener("change", updateSummary);
+elements.fieldsHelpToggle.addEventListener("click", () => {
+  const expanded = elements.fieldsHelp.hidden;
+  elements.fieldsHelp.hidden = !expanded;
+  elements.fieldsHelpToggle.setAttribute("aria-expanded", String(expanded));
+  elements.fieldsHelpToggle.textContent = expanded ? "Close help" : "Help";
+});
 elements.loadProfile.addEventListener("click", loadProfile);
 elements.connectVrx.addEventListener("click", connectVrx);
 elements.reloadWidgets.addEventListener("click", reloadWidgets);
