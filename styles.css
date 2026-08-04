@@ -2,13 +2,13 @@
 * { box-sizing:border-box; }
 [hidden] { display:none!important; }
 body { margin:0; min-height:100vh; background:radial-gradient(circle at 70% -10%, #183045 0, transparent 34rem), var(--bg); color:var(--text); font:15px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
-.mark { display:grid; place-items:center; width:36px; height:36px; border:1px solid var(--accent); color:var(--accent); font-weight:800; transform:rotate(45deg); }
-.mark>span { transform:rotate(-45deg); }
+.brand-logo { display:block; width:132px; height:88px; border-radius:10px; object-fit:cover; }
+.brand-icon { display:block; width:30px; height:30px; border-radius:7px; object-fit:cover; }
 .eyebrow { color:var(--accent); font-size:11px; font-weight:750; letter-spacing:.14em; }
 main { width:min(1120px, calc(100% - 32px)); margin:0 auto; padding:64px 0; }
 .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:30px; margin-bottom:34px; }
 .hero-heading { display:flex; align-items:center; gap:22px; }
-.hero-heading .mark { flex:0 0 auto; width:52px; height:52px; font-size:20px; }
+.hero-heading .brand-logo { flex:0 0 auto; }
 h1 { margin:5px 0 8px; max-width:700px; font-size:clamp(34px, 5vw, 58px); line-height:1.05; letter-spacing:-.035em; }
 h2 { margin:3px 0 0; font-size:26px; }
 p { margin:0; color:var(--muted); }
@@ -166,7 +166,6 @@ input[type="number"] { width:78px; margin-right:7px; padding:7px 8px; border:1px
 footer { padding:22px; border-top:1px solid var(--line); color:#637482; text-align:center; font-size:12px; }
 .config-nav { position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; gap:18px; margin:0 0 18px; padding:10px; border:1px solid var(--line); border-radius:10px; background:#0b1117ee; box-shadow:0 12px 28px #0008; backdrop-filter:blur(14px); }
 .sidebar-brand { display:flex; align-items:center; gap:10px; }
-.sidebar-brand .mark { width:30px; height:30px; }
 .sidebar-brand>button { padding:5px 9px; }
 .sidebar-connections { display:flex; gap:6px; }
 .sidebar-connections button { display:flex; align-items:center; gap:9px; padding:7px 10px; text-align:left; }

@@ -6,17 +6,17 @@
   <meta name="theme-color" content="#101820">
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=57">
+  <link rel="icon" href="./icon-192.png" type="image/png" sizes="192x192">
+  <link rel="stylesheet" href="./styles.css?v=58">
 </head>
 <body>
   <main>
     <section class="hero">
-      <div class="hero-heading"><span class="mark"><span>G</span></span><div><p class="eyebrow">FLIGHT CONTROLLER</p><h1>GHOST Configurator</h1><p>Connect directly to the FC over USB. Configuration stays between this browser and your flight controller.</p></div></div>
+      <div class="hero-heading"><img class="brand-logo" src="./ghost-logo.png" alt="GHOST"><div><p class="eyebrow">FLIGHT CONTROLLER</p><h1>GHOST Configurator</h1><p>Connect directly to the FC over USB. Configuration stays between this browser and your flight controller.</p></div></div>
     </section>
 
     <nav class="config-nav" aria-label="Configurator sections">
-      <div class="sidebar-brand"><span class="mark"><span>G</span></span><strong>GHOST</strong><button id="sidebarToggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">‹</button></div>
+      <div class="sidebar-brand"><img class="brand-icon" src="./icon-192.png" alt=""><strong>GHOST</strong><button id="sidebarToggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">‹</button></div>
       <div class="sidebar-connections">
         <button id="connect" type="button"><i class="connection-dot"></i><span><small>Flight controller</small><strong id="sidebarFcState">Disconnected</strong></span></button>
         <button id="connectVrx" type="button"><i class="connection-dot"></i><span><small>Video receiver</small><strong id="sidebarVrxState">Disconnected</strong></span></button>
