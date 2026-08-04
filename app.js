@@ -1479,7 +1479,11 @@ async function connectVrx() {
   } catch (error) {
     vrxApi = null;
     vrxInventory = null;
-    setStatus(`VRX bridge: ${error.message}`, "bad");
+    const permissionHint = window.isSecureContext && error instanceof TypeError
+      ? " Allow Local Network Access for this site in the browser, then try again."
+      : "";
+    const separator = permissionHint && !/[.!?]$/.test(error.message) ? "." : "";
+    setStatus(`VRX bridge: ${error.message}${separator}${permissionHint}`, "bad");
   } finally {
     elements.connectVrx.disabled = false;
     setConnected(Boolean(session));

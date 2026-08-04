@@ -6,6 +6,7 @@ export class VrxApi {
   async request(path, options = {}) {
     const response = await fetch(`${this.baseUrl}${path}`, {
       cache: "no-store",
+      targetAddressSpace: "local",
       ...options,
     });
     let value;
