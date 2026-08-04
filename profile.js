@@ -18,7 +18,7 @@ function matchesDefault(value, option) {
 
 export function compactManifestOptions(options, visibleKey, valueFor) {
   const visible = valueFor(visibleKey, options.get(visibleKey));
-  if (!isTrue(visible)) return null;
+  if (!isTrue(visible)) return [[visibleKey, "false"]];
 
   const values = [[visibleKey, "true"]];
   for (const [key, option] of options) {
