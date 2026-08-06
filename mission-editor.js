@@ -153,7 +153,7 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
       row.innerHTML = `<td><strong>${index + 1}</strong></td><td><select data-key="command">${commandOptions}</select></td>` +
         `<td><input data-key="latitude" type="number" step="0.0000001" value="${item.latitude.toFixed(7)}"></td>` +
         `<td><input data-key="longitude" type="number" step="0.0000001" value="${item.longitude.toFixed(7)}"></td>` +
-        `<td><input data-key="altitude" type="number" step="0.1" value="${item.altitude}"></td>` +
+        `<td><input data-key="altitude" type="number" step="0.1" value="${item.altitude.toFixed(1)}"></td>` +
         `<td class="mission-row-actions"><button data-action="up" title="Move up">↑</button><button data-action="down" title="Move down">↓</button><button data-action="duplicate" title="Duplicate">＋</button><button data-action="delete" title="Delete">×</button></td>`;
       row.addEventListener("input", (event) => {
         const key = event.target.dataset.key;
