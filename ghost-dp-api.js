@@ -13,8 +13,15 @@ const MISSION_INFO_REQUEST = 0x30;
 const MISSION_INFO_RESPONSE = 0x31;
 const MISSION_ITEM_REQUEST = 0x32;
 const MISSION_ITEM_RESPONSE = 0x33;
+const MISSION_WRITE_BEGIN = 0x34;
+const MISSION_WRITE_ITEM = 0x35;
+const MISSION_WRITE_COMMIT = 0x36;
+const MISSION_WRITE_ABORT = 0x37;
+const MISSION_WRITE_RESULT = 0x38;
 const MISSION_TYPE_MISSION = 0;
 export const GHOST_CAP_MISSION_INT_READ = 1 << 11;
+export const GHOST_CAP_MISSION_INT_WRITE = 1 << 13;
+const VOLATILE = 1 << 4;
 
 const readU16 = (data, offset) => data[offset] | (data[offset + 1] << 8);
 const readU32 = (data, offset) => (data[offset] | (data[offset + 1] << 8) |
@@ -61,10 +68,10 @@ export class GhostDpApi {
     return this.exchangeId;
   }
 
-  makeRequest(messageType, body = new Uint8Array()) {
+  makeRequest(messageType, body = new Uint8Array(), extraFlags = 0) {
     const exchangeId = this.nextExchange();
     const data = new Uint8Array(10 + body.length);
-    data.set([SUBCOMMAND, VERSION, messageType, REQUEST,
+    data.set([SUBCOMMAND, VERSION, messageType, REQUEST | extraFlags,
       ENDPOINT_CONFIGURATOR, ENDPOINT_FC,
       this.sessionId & 0xff, this.sessionId >> 8,
       exchangeId & 0xff, exchangeId >> 8]);
@@ -72,8 +79,8 @@ export class GhostDpApi {
     return { data, exchangeId };
   }
 
-  async request(messageType, responseType, body = new Uint8Array()) {
-    const { data, exchangeId } = this.makeRequest(messageType, body);
+  async request(messageType, responseType, body = new Uint8Array(), extraFlags = 0) {
+    const { data, exchangeId } = this.makeRequest(messageType, body, extraFlags);
     const response = await this.session.requestMsp(MSP_DISPLAYPORT, data, 2000);
     if (response.length < 10 || response[0] !== SUBCOMMAND ||
         (response[1] >> 4) !== (VERSION >> 4) ||
@@ -191,5 +198,74 @@ export class GhostDpApi {
       items.push(await this.getMissionItem(sequence, info.opaqueId));
     }
     return { ...info, items };
+  }
+
+  missionWriteError(status) {
+    const messages = { 4: "FC session changed", 5: "invalid transaction",
+      13: "too many mission items", 19: "another mission upload is active",
+      20: "FC is armed or a mission is active", 21: "mission changed on the FC",
+      22: "mission item failed validation" };
+    return messages[status] ?? `FC status ${status}`;
+  }
+
+  async missionWriteRequest(messageType, body) {
+    const data = await this.request(messageType, MISSION_WRITE_RESULT, body, VOLATILE);
+    if (data.length !== 23) throw new Error("Truncated mission-write response");
+    const result = { status: data[10], token: readU32(data, 11),
+      received: readU16(data, 15), expected: readU16(data, 17),
+      opaqueId: readU32(data, 19) };
+    if (result.status !== 0) throw new Error(this.missionWriteError(result.status));
+    return result;
+  }
+
+  encodeMissionItem(token, item, sequence) {
+    const body = new Uint8Array(39);
+    const view = new DataView(body.buffer);
+    view.setUint32(0, token, true);
+    view.setUint16(4, sequence, true);
+    body[6] = Number(item.frame ?? 5);
+    view.setUint16(7, Number(item.command ?? 16), true);
+    body[9] = 0;
+    body[10] = Number(item.autocontinue ?? 1);
+    for (let index = 0; index < 4; index += 1) {
+      view.setFloat32(11 + index * 4, Number(item.params?.[index] ?? 0), true);
+    }
+    view.setInt32(27, Math.round(Number(item.latitude) * 1e7), true);
+    view.setInt32(31, Math.round(Number(item.longitude) * 1e7), true);
+    view.setFloat32(35, Number(item.altitude), true);
+    return body;
+  }
+
+  async writeMission(items, expectedOpaqueId, progress = () => {}) {
+    if (!this.hello) await this.getCapabilities();
+    if (!(this.hello.flags & GHOST_CAP_MISSION_INT_WRITE)) {
+      throw new Error("This flight controller does not advertise mission writing");
+    }
+    const begin = new Uint8Array(6);
+    const beginView = new DataView(begin.buffer);
+    beginView.setUint32(0, expectedOpaqueId, true);
+    beginView.setUint16(4, items.length, true);
+    const transaction = await this.missionWriteRequest(MISSION_WRITE_BEGIN, begin);
+    try {
+      for (let sequence = 0; sequence < items.length; sequence += 1) {
+        await this.missionWriteRequest(MISSION_WRITE_ITEM,
+          this.encodeMissionItem(transaction.token, items[sequence], sequence));
+        progress(sequence + 1, items.length);
+      }
+      const commit = new Uint8Array(4);
+      new DataView(commit.buffer).setUint32(0, transaction.token, true);
+      const committed = await this.missionWriteRequest(MISSION_WRITE_COMMIT, commit);
+      const verified = await this.getMission();
+      if (verified.opaqueId !== committed.opaqueId ||
+          verified.items.length !== items.length) {
+        throw new Error("Mission read-back did not match the committed revision");
+      }
+      return verified;
+    } catch (error) {
+      const abort = new Uint8Array(4);
+      new DataView(abort.buffer).setUint32(0, transaction.token, true);
+      await this.missionWriteRequest(MISSION_WRITE_ABORT, abort).catch(() => {});
+      throw error;
+    }
   }
 }

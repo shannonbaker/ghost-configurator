@@ -3,14 +3,14 @@ import { SerialSession } from "./serial.js";
 import { GhostMspApi } from "./ghost-api.js";
 import {
   GhostDpApi, deadbandPresentation, displayDeadband, rawDeadband,
-} from "./ghost-dp-api.js";
+} from "./ghost-dp-api.js?v=2";
 import { thresholdPresentation, validateColourPolicy } from "./field-colour.js";
 import {
   compactManifestOptions, parseManifestDependencies,
   resolveManifestDependencies,
 } from "./profile.js";
 import { FcRoutedVrxApi, VrxApi } from "./vrx-api.js";
-import { createMissionEditor } from "./mission-editor.js?v=2";
+import { createMissionEditor } from "./mission-editor.js?v=3";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
   ahiSizeFromPixels, aspectConstrainedSize,
@@ -2234,5 +2234,5 @@ renderVideoSystemFields();
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=85").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=86").catch(() => {});
 }

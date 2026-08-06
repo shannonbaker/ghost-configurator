@@ -170,7 +170,7 @@
         <div><small>Items</small><strong id="missionCount">0 / 256</strong></div>
         <div><small>Route distance</small><strong id="missionDistance">0 m</strong></div>
         <div><small>FC revision</small><strong id="missionRevision">Local draft</strong></div>
-        <div><small>Write support</small><strong>Read-only preview</strong></div>
+        <div><small>Write support</small><strong id="missionWriteSupport">Read only</strong></div>
       </div>
       <div class="mission-workspace">
         <div id="missionMapWrap" class="mission-map-wrap" data-map-mode="web">
@@ -185,7 +185,7 @@
         </div>
       </div>
       <div id="missionValidation" class="mission-validation">Add or import a waypoint.</div>
-      <div class="footer-actions"><p>Editing is local only. Transactional FC upload will be enabled after staged write and read-back verification are implemented.</p><button class="primary" disabled>Write to FC</button></div>
+      <div class="footer-actions"><p>Writes are staged and validated on the FC, committed atomically, then read back for revision verification.</p><button id="missionWrite" class="primary" disabled>Write to FC</button></div>
     </section>
 
     <section class="panel fields-panel video-fields-panel config-page" data-config-page="video">
@@ -201,6 +201,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=95"></script>
+  <script type="module" src="./app.js?v=96"></script>
 </body>
 </html>

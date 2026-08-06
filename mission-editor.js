@@ -1,6 +1,8 @@
+import { GHOST_CAP_MISSION_INT_WRITE } from "./ghost-dp-api.js?v=2";
+
 const COMMANDS = new Map([
   [16, "Waypoint"], [18, "Loiter turns"], [19, "Loiter time"],
-  [20, "Return home"], [21, "Land"], [22, "Takeoff"],
+  [21, "Land"], [22, "Takeoff"],
 ]);
 
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -196,6 +198,11 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
     elements.missionRevision.textContent = opaqueId ? opaqueId.toString(16).padStart(8, "0") : "Local draft";
     elements.missionValidation.textContent = errors.length ? errors.join(" ") : items.length ? "Plan is locally valid." : "Add or import a waypoint.";
     elements.missionValidation.dataset.level = errors.length ? "bad" : "good";
+    const api = getApi();
+    const writeSupported = Boolean(api?.hello?.flags & GHOST_CAP_MISSION_INT_WRITE);
+    elements.missionWriteSupport.textContent = writeSupported ? "Transactional" : "Read only";
+    elements.missionWrite.disabled = !writeSupported || !dirty || !opaqueId ||
+      !items.length || Boolean(errors.length);
   }
 
   function render() { renderTable(); renderMap(); renderSummary(); }
@@ -229,7 +236,7 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
     try {
       const parsed = JSON.parse(await elements.missionFile.files[0].text());
       if (parsed.schema !== "ghost-flight-plan-v1" || !Array.isArray(parsed.items)) throw new Error("Not a GHOST flight-plan file");
-      items = parsed.items.map(normaliseItem); opaqueId = 0; setDirty(); render();
+      items = parsed.items.map(normaliseItem); setDirty(); render();
       setStatus(`Imported ${items.length} flight-plan items into the local draft.`, "good");
     } catch (error) { setStatus(`Flight-plan import: ${error.message}`, "bad"); }
     elements.missionFile.value = "";
@@ -254,6 +261,24 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
   const endDrag = () => { dragIndex = -1; };
   elements.missionMap.addEventListener("pointerup", endDrag);
   elements.missionMap.addEventListener("pointercancel", endDrag);
+  elements.missionWrite.addEventListener("click", async () => {
+    const errors = validateMission(items, maximum);
+    if (errors.length) return setStatus(errors.join(" "), "bad");
+    const api = getApi();
+    if (!api || !opaqueId) return setStatus("Read the current FC mission before writing.", "bad");
+    if (!window.confirm(`Replace the FC flight plan with ${items.length} items?`)) return;
+    elements.missionWrite.disabled = true;
+    try {
+      const verified = await api.writeMission(items, opaqueId, (done, total) =>
+        setStatus(`Uploading flight plan… ${done}/${total}`));
+      maximum = verified.maximum; opaqueId = verified.opaqueId;
+      items = verified.items.map(normaliseItem); setDirty(false); render();
+      setStatus(`Flight plan committed and verified (${items.length} items).`, "good");
+    } catch (error) {
+      setStatus(`Flight-plan write: ${error.message}`, "bad");
+      renderSummary();
+    }
+  });
   elements.missionMapMode.addEventListener("change", () => {
     try { localStorage.setItem("ghost-mission-map-mode", elements.missionMapMode.value); } catch (_) {}
     renderMap();
@@ -262,5 +287,8 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
     elements.missionMapMode.value = localStorage.getItem("ghost-mission-map-mode") || "web";
   } catch (_) { elements.missionMapMode.value = "web"; }
   render();
-  return { readFromFc, setConnected: (connected) => { elements.missionRead.disabled = !connected; } };
+  return { readFromFc, setConnected: (connected) => {
+    elements.missionRead.disabled = !connected;
+    renderSummary();
+  } };
 }

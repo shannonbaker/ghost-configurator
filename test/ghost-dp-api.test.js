@@ -59,3 +59,20 @@ test("presents encoded deadbands in field units without losing raw values", () =
   assert.equal(displayDeadband(3, microseconds), "3");
   assert.equal(rawDeadband("3", microseconds), 3);
 });
+
+test("encodes canonical mission items for transactional upload", () => {
+  const api = new GhostDpApi(new NativeSession());
+  const body = api.encodeMissionItem(0x12345678, {
+    frame: 5, command: 16, autocontinue: 1, params: [1, 2, 3, 4],
+    latitude: -37.7809295, longitude: 144.8498792, altitude: 100.58,
+  }, 3);
+  const view = new DataView(body.buffer);
+  assert.equal(body.length, 39);
+  assert.equal(view.getUint32(0, true), 0x12345678);
+  assert.equal(view.getUint16(4, true), 3);
+  assert.equal(body[6], 5);
+  assert.equal(view.getUint16(7, true), 16);
+  assert.equal(view.getInt32(27, true), -377809295);
+  assert.equal(view.getInt32(31, true), 1448498792);
+  assert.ok(Math.abs(view.getFloat32(35, true) - 100.58) < 0.001);
+});
