@@ -74,11 +74,14 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .mission-list { min-width:0; overflow:hidden; border:1px solid var(--line); border-radius:8px; }
 .mission-actions { display:flex; gap:7px; padding:8px; border-bottom:1px solid var(--line); }
 .mission-actions button { padding:6px 9px; font-size:11px; }
-.mission-table { min-width:720px; }
+.mission-table { min-width:570px; table-layout:fixed; }
 .mission-table th,.mission-table td { padding:7px 6px; font-size:10px; }
 .mission-table th:first-child,.mission-table td:first-child { width:34px; padding-left:10px; }
-.mission-table select,.mission-table input[type="number"] { min-width:105px; width:100%; margin:0; padding:5px; font-size:10px; }
-.mission-table td:nth-child(2) { min-width:115px; }
+.mission-table select,.mission-table input[type="number"] { min-width:0; width:100%; margin:0; padding:5px; font-size:10px; }
+.mission-table th:nth-child(2),.mission-table td:nth-child(2) { width:116px; }
+.mission-table th:nth-child(3),.mission-table td:nth-child(3),.mission-table th:nth-child(4),.mission-table td:nth-child(4) { width:112px; }
+.mission-table th:nth-child(5),.mission-table td:nth-child(5) { width:76px; }
+.mission-table th:nth-child(6),.mission-table td:nth-child(6) { width:116px; }
 .mission-row-actions { display:flex; gap:3px; white-space:nowrap; }
 .mission-row-actions button { min-width:25px; padding:4px 6px; }
 .mission-validation { margin:0 24px 18px; padding:9px 11px; border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:11px; }
