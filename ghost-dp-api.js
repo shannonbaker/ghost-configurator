@@ -9,6 +9,12 @@ const HELLO_REQUEST = 0x01;
 const HELLO_RESPONSE = 0x02;
 const CATALOG_REQUEST = 0x03;
 const CATALOG_RESPONSE = 0x04;
+const MISSION_INFO_REQUEST = 0x30;
+const MISSION_INFO_RESPONSE = 0x31;
+const MISSION_ITEM_REQUEST = 0x32;
+const MISSION_ITEM_RESPONSE = 0x33;
+const MISSION_TYPE_MISSION = 0;
+export const GHOST_CAP_MISSION_INT_READ = 1 << 11;
 
 const readU16 = (data, offset) => data[offset] | (data[offset + 1] << 8);
 const readU32 = (data, offset) => (data[offset] | (data[offset + 1] << 8) |
@@ -139,5 +145,51 @@ export class GhostDpApi {
       start = next;
     } while (start !== 0);
     return records;
+  }
+
+  async getMissionInfo() {
+    if (!this.hello) await this.getCapabilities();
+    if (!(this.hello.flags & GHOST_CAP_MISSION_INT_READ)) {
+      throw new Error("This flight controller does not advertise mission reading");
+    }
+    const data = await this.request(MISSION_INFO_REQUEST, MISSION_INFO_RESPONSE,
+      Uint8Array.of(MISSION_TYPE_MISSION));
+    if (data.length !== 24 || data[10] !== 0 || data[11] !== MISSION_TYPE_MISSION) {
+      throw new Error(`Mission information failed (${data[10] ?? "truncated"})`);
+    }
+    return { count: readU16(data, 12), maximum: readU16(data, 14),
+      opaqueId: readU32(data, 16), crc: readU32(data, 20) };
+  }
+
+  async getMissionItem(sequence, expectedOpaqueId = null) {
+    const body = Uint8Array.of(MISSION_TYPE_MISSION, sequence & 0xff, sequence >> 8);
+    const data = await this.request(MISSION_ITEM_REQUEST, MISSION_ITEM_RESPONSE, body);
+    if (data.length < 16 || data[10] !== 0 || data[11] !== MISSION_TYPE_MISSION) {
+      throw new Error(`Mission item ${sequence + 1} failed (${data[10] ?? "truncated"})`);
+    }
+    const opaqueId = readU32(data, 12);
+    if (expectedOpaqueId !== null && opaqueId !== expectedOpaqueId) {
+      throw new Error("Mission changed while it was being read; read it again");
+    }
+    if (data.length !== 51) throw new Error(`Mission item ${sequence + 1} is truncated`);
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    const params = Array.from({ length: 4 }, (_, index) =>
+      view.getFloat32(23 + index * 4, true));
+    return {
+      sequence: readU16(data, 16), frame: data[18], command: readU16(data, 19),
+      current: data[21], autocontinue: data[22], params,
+      latitude: view.getInt32(39, true) * 1e-7,
+      longitude: view.getInt32(43, true) * 1e-7,
+      altitude: view.getFloat32(47, true),
+    };
+  }
+
+  async getMission() {
+    const info = await this.getMissionInfo();
+    const items = [];
+    for (let sequence = 0; sequence < info.count; sequence += 1) {
+      items.push(await this.getMissionItem(sequence, info.opaqueId));
+    }
+    return { ...info, items };
   }
 }

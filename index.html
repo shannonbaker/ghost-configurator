@@ -7,7 +7,9 @@
   <title>GHOST Configurator</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon-192.png" type="image/png" sizes="192x192">
-  <link rel="stylesheet" href="./styles.css?v=58">
+  <link rel="stylesheet" href="./styles.css?v=60">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 </head>
 <body>
   <main>
@@ -25,6 +27,7 @@
         <button type="button" class="config-tab active" data-config-target="dashboard">Dashboard</button>
         <button type="button" class="config-tab" data-config-target="widgets">Layout &amp; widgets</button>
         <button type="button" class="config-tab" data-config-target="fields">Fields</button>
+        <button type="button" class="config-tab" data-config-target="flight-plan">Flight Plan</button>
         <button type="button" class="config-tab" data-config-target="video">Video system</button>
       </div>
       <label class="config-mode"><span>Interface</span><select id="configuratorMode"><option value="modern">New</option><option value="classic">Classic</option></select></label>
@@ -158,6 +161,33 @@
       <div class="footer-actions"><p>Active fields are derived from enabled widgets. MSPv2 firmware applies atomically without rebooting; legacy firmware uses CLI save and reboot.</p><button id="apply" class="primary" disabled>Apply configuration</button></div>
     </section>
 
+    <section class="panel mission-panel config-page" data-config-page="flight-plan">
+      <div class="section-heading">
+        <div><p class="eyebrow">NAVIGATION</p><div class="heading-title"><h2>Flight Plan</h2><button id="missionRead" disabled>Read from FC</button></div></div>
+        <span id="missionDirty">Local draft</span>
+      </div>
+      <div class="mission-summary">
+        <div><small>Items</small><strong id="missionCount">0 / 256</strong></div>
+        <div><small>Route distance</small><strong id="missionDistance">0 m</strong></div>
+        <div><small>FC revision</small><strong id="missionRevision">Local draft</strong></div>
+        <div><small>Write support</small><strong>Read-only preview</strong></div>
+      </div>
+      <div class="mission-workspace">
+        <div id="missionMapWrap" class="mission-map-wrap" data-map-mode="web">
+          <div class="mission-map-toolbar"><strong>Route map</strong><label>Map<select id="missionMapMode"><option value="web">Web map</option><option value="plane">Offline plane</option></select></label><small>North up · drag markers to edit coordinates</small></div>
+          <svg id="missionMap" class="mission-map" viewBox="0 0 800 520" role="img" aria-label="Flight plan route editor" hidden></svg>
+          <div id="missionWebMap" class="mission-map mission-web-map" aria-label="Flight plan web map"></div>
+          <div id="missionMapEmpty" class="mission-map-empty"><strong>No flight plan loaded</strong><span>Connect and read the FC, import a plan, or add a waypoint.</span></div>
+        </div>
+        <div class="mission-list">
+          <div class="mission-actions"><button id="missionAdd">Add waypoint</button><button id="missionImport">Import</button><button id="missionExport">Export</button><input id="missionFile" type="file" accept="application/json,.json" hidden></div>
+          <div class="table-wrap"><table class="mission-table"><thead><tr><th>#</th><th>Command</th><th>Latitude</th><th>Longitude</th><th>Altitude</th><th></th></tr></thead><tbody id="missionRows"></tbody></table></div>
+        </div>
+      </div>
+      <div id="missionValidation" class="mission-validation">Add or import a waypoint.</div>
+      <div class="footer-actions"><p>Editing is local only. Transactional FC upload will be enabled after staged write and read-back verification are implemented.</p><button class="primary" disabled>Write to FC</button></div>
+    </section>
+
     <section class="panel fields-panel video-fields-panel config-page" data-config-page="video">
       <div class="section-heading">
         <div><p class="eyebrow">VIDEO SYSTEM</p><div class="heading-title"><h2>Video System Fields</h2></div></div>
@@ -171,6 +201,6 @@
     </section>
   </main>
   <footer>GHOST Configurator · Transactional GHOST MSPv2 with legacy CLI fallback</footer>
-  <script type="module" src="./app.js?v=92"></script>
+  <script type="module" src="./app.js?v=95"></script>
 </body>
 </html>

@@ -10,6 +10,7 @@ import {
   resolveManifestDependencies,
 } from "./profile.js";
 import { FcRoutedVrxApi, VrxApi } from "./vrx-api.js";
+import { createMissionEditor } from "./mission-editor.js?v=2";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
   ahiSizeFromPixels, aspectConstrainedSize,
@@ -57,6 +58,7 @@ const VIDEO_SYSTEM_FIELDS = [
 let lastProfileSections = null;
 let vrxApi = null;
 let vrxInventory = null;
+let missionEditor = null;
 
 const profileAvailable = () => Boolean(vrxApi || (session && ghostApi && widgetProfileSupported));
 
@@ -1016,6 +1018,14 @@ async function connect() {
     if (variant !== "BTFL") {
       throw new Error(`POC CLI adapter supports BTFL; detected ${variant || "an unknown FC"}`);
     }
+    if (!ghostDpApi) {
+      try {
+        const nativeApi = new GhostDpApi(session);
+        await nativeApi.getCapabilities();
+        ghostDpApi = nativeApi;
+      } catch (_) { /* Mission and native field services are optional. */ }
+    }
+    missionEditor?.setConnected(Boolean(ghostDpApi));
     ghostApi = new GhostMspApi(session);
     let streamStatsSupported = false;
     try {
@@ -2045,6 +2055,7 @@ async function disconnect() {
   capabilities = readCachedFieldCatalogue();
   ghostApi = null;
   ghostDpApi = null;
+  missionEditor?.setConnected(false);
   if (vrxApi instanceof FcRoutedVrxApi) {
     vrxApi = null;
     vrxInventory = null;
@@ -2186,6 +2197,10 @@ function setConfiguratorMode(mode) {
 for (const tab of document.querySelectorAll("[data-config-target]")) {
   tab.addEventListener("click", () => selectConfiguratorPage(tab.dataset.configTarget));
 }
+missionEditor = createMissionEditor(elements, {
+  getApi: () => ghostDpApi,
+  setStatus,
+});
 elements.configuratorMode.addEventListener("change", () =>
   setConfiguratorMode(elements.configuratorMode.value));
 function setSidebarCollapsed(collapsed) {
@@ -2219,5 +2234,5 @@ renderVideoSystemFields();
   setStatus("Web Serial is unavailable in this browser. Use desktop Chrome, Edge, or Chromium.", "bad");
 }
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("./sw.js?v=82").catch(() => {});
+  navigator.serviceWorker.register("./sw.js?v=85").catch(() => {});
 }

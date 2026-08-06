@@ -76,8 +76,39 @@ test("layout editor exposes built-in resize and anchor controls", async () => {
   assert.match(app, /elements\.sticksSize\.addEventListener\("change"/);
   assert.match(app, /numberValue\("ahiStale", 1200, 10000\)/);
   assert.match(app, /numberValue\("sticksStale", 1200, 10000\)/);
-  assert.match(html, /styles\.css\?v=38/);
-  assert.match(html, /app\.js\?v=54/);
+  assert.match(html, /styles\.css\?v=40/);
+  assert.match(html, /app\.js\?v=66/);
+  assert.match(app, /serviceWorker\.register\("\.\/sw\.js\?v=75"\)/);
+  assert.match(html, /id="videoSystemFields"/);
+  assert.match(html, /Video System Fields/);
+  assert.match(app, /id: 65001, key: "vtx_temperature"/);
+  assert.match(app, /"\[field_policy\." \+ field\.id \+ "\]"/);
+});
+
+test("field On state is derived from enabled widget requirements", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../app.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /On fields are derived from enabled widgets/);
+  assert.match(app, /class="enabled" type="checkbox"[^`]*disabled/);
+  assert.match(app, /class="rate" type="number"[^`]*disabled/);
+  assert.match(app, /const shouldBeEnabled = required\.has\(name\)/);
+  assert.match(app, /onCheckbox\.checked = shouldBeEnabled/);
+  assert.match(app, /setControlRate\("ahiPitch", "ahiDataHz"\)/);
+  assert.match(app, /setControlRate\("sticksThrottle", "sticksDataHz"\)/);
+});
+
+test("position-only stats preview follows text size and active field rows", async () => {
+  const [app, manifest] = await Promise.all([
+    readFile(new URL("../app.js", import.meta.url), "utf8"),
+    readFile(new URL("../widgets/manifests/ghost_dp_stats.widget.ini", import.meta.url), "utf8"),
+  ]);
+  assert.match(app, /if \(definition\.widget\.geometry_x && definition\.widget\.geometry_y\)/);
+  assert.match(app, /function ghostStatsPreviewSize\(definition\)/);
+  assert.match(app, /6 \+ fieldNames\.length/);
+  assert.match(app, /context\.measureText\(text\)\.width/);
+  assert.doesNotMatch(manifest, /placement_base_(?:width|height)/);
 });
 
 test("completed drag and resize operations automatically persist layout", async () => {

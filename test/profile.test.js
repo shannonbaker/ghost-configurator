@@ -11,9 +11,12 @@ const options = new Map([
   ["source", { type: "string", default: "/dev/shm/info" }],
 ]);
 
-test("disabled manifest widgets are omitted from the FC profile", () => {
+test("disabled manifest widgets persist an explicit visibility override", () => {
   const values = new Map([["visible", "false"]]);
-  assert.equal(compactManifestOptions(options, "visible", (key) => values.get(key)), null);
+  assert.deepEqual(
+    compactManifestOptions(options, "visible", (key) => values.get(key)),
+    [["visible", "false"]],
+  );
 });
 
 test("enabled manifest widgets store visibility and non-default values only", () => {

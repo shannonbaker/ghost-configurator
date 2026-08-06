@@ -44,6 +44,47 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .field-state.active { background:#dff3e4; color:#226c35; }
 .field-state.available { background:#e8ebed; color:#687078; }
 .video-fields-panel { margin-top:18px; }
+.mission-panel { overflow:hidden; }
+.mission-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin:0 24px 16px; overflow:hidden; border:1px solid var(--line); border-radius:7px; background:var(--line); }
+.mission-summary>div { display:flex; flex-direction:column; padding:10px 13px; background:var(--panel); }
+.mission-summary small { color:var(--muted); font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.mission-workspace { display:grid; grid-template-columns:minmax(420px,1.15fr) minmax(520px,.85fr); gap:16px; padding:0 24px 18px; }
+.mission-map-wrap { position:relative; overflow:hidden; min-width:0; border:1px solid var(--line); border-radius:8px; background:#151b20; }
+.mission-map-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:46px; padding:7px 12px; border-bottom:1px solid #3e454a; color:#f2f3f4; font-size:11px; }
+.mission-map-toolbar small { color:#aeb5ba; }
+.mission-map-toolbar label { flex-direction:row; align-items:center; gap:6px; margin-left:auto; color:#c9ced1; font-size:10px; }
+.mission-map-toolbar select { width:auto; min-width:110px; padding:4px 6px; font-size:10px; }
+.mission-map { display:block; width:100%; min-height:390px; background:linear-gradient(145deg,#22292e,#13181c); touch-action:none; }
+.mission-web-map { height:520px; min-height:390px; background:#dfe3e5; }
+.mission-map-wrap[data-map-mode="web"] #missionMap,.mission-map-wrap[data-map-mode="plane"] #missionWebMap { display:none!important; }
+.mission-map-wrap[data-map-mode="web"] #missionWebMap,.mission-map-wrap[data-map-mode="plane"] #missionMap { display:block; }
+.mission-web-map .leaflet-tile-pane { z-index:200; }
+.mission-web-map .leaflet-overlay-pane { z-index:400; }
+.mission-web-map .leaflet-marker-pane { z-index:600; }
+.mission-web-marker { display:grid!important; place-items:center; border:2px solid #fff; border-radius:50%; background:#f2c500; box-shadow:0 2px 6px #0008; color:#202224; font:800 11px/1 system-ui,sans-serif; }
+.mission-web-map .leaflet-control-attribution { font-size:9px; }
+.mission-grid-line { stroke:#84929a2c; stroke-width:1; }
+.mission-route { fill:none; stroke:#f2c500; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+.mission-marker { cursor:grab; }
+.mission-marker:active { cursor:grabbing; }
+.mission-marker circle { fill:#f2c500; stroke:#fff; stroke-width:2; }
+.mission-marker text { fill:#202224; font-size:11px; font-weight:800; pointer-events:none; }
+.mission-map-empty { position:absolute; inset:42px 0 0; display:grid; place-content:center; gap:4px; color:#aeb5ba; text-align:center; pointer-events:none; }
+.mission-map-empty strong { color:#f2f3f4; }
+.mission-list { min-width:0; overflow:hidden; border:1px solid var(--line); border-radius:8px; }
+.mission-actions { display:flex; gap:7px; padding:8px; border-bottom:1px solid var(--line); }
+.mission-actions button { padding:6px 9px; font-size:11px; }
+.mission-table { min-width:720px; }
+.mission-table th,.mission-table td { padding:7px 6px; font-size:10px; }
+.mission-table th:first-child,.mission-table td:first-child { width:34px; padding-left:10px; }
+.mission-table select,.mission-table input[type="number"] { min-width:105px; width:100%; margin:0; padding:5px; font-size:10px; }
+.mission-table td:nth-child(2) { min-width:115px; }
+.mission-row-actions { display:flex; gap:3px; white-space:nowrap; }
+.mission-row-actions button { min-width:25px; padding:4px 6px; }
+.mission-validation { margin:0 24px 18px; padding:9px 11px; border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:11px; }
+.mission-validation[data-level="good"] { border-color:#74b984; background:#eaf7ed; color:#246b35; }
+.mission-validation[data-level="bad"] { border-color:#dc8a84; background:#fff0ef; color:#a52f27; }
+#missionDirty[data-dirty="true"] { color:#9a6f00; font-weight:700; }
 .widget-panel { margin-bottom:18px; overflow:hidden; }
 .layout-editor { padding:0 24px 24px; }
 .layout-toolbar,.layout-readout { display:flex; align-items:end; justify-content:space-between; gap:18px; }
@@ -249,6 +290,7 @@ body[data-config-mode="modern"] .manifest-widget-container { display:block; }
 body[data-config-mode="modern"] .widget-panel>.footer-actions { position:sticky; bottom:0; z-index:5; grid-column:1/-1; background:#fffffff2; }
 @media (max-width:720px) { main{padding:34px 0}.hero{align-items:flex-start;flex-direction:column}.hero-heading{align-items:flex-start}.identity{grid-template-columns:1fr 1fr}.identity-actions{grid-column:1/-1}.layout-editor{padding:0 12px 18px}.layout-toolbar{align-items:flex-start;flex-direction:column}.layout-toolbar label{width:100%}.layout-readout{align-items:flex-start;flex-direction:column;gap:3px}.widget-grid{grid-template-columns:1fr;padding:0 12px 18px}.widget-card-body{grid-template-columns:1fr}.widget-summary{display:none}.heading-tools{align-items:flex-end;flex-direction:column;gap:6px}.footer-actions{align-items:flex-start;flex-direction:column}.footer-actions button{width:100%}th,td{padding:12px} }
 @media (max-width:1180px) { body[data-config-mode="modern"] .widget-panel{display:block}body[data-config-mode="modern"] .widget-grid{max-height:none;padding:18px 12px} }
+@media (max-width:1180px) { .mission-workspace{grid-template-columns:1fr}.mission-summary{grid-template-columns:1fr 1fr} }
 @media (max-width:900px) { body[data-config-mode="modern"] main{margin:0 12px;padding-top:132px}body[data-config-mode="modern"] .config-nav{inset:8px 8px auto;width:auto;max-height:116px;overflow:auto}body[data-config-mode="modern"] .sidebar-brand{display:none}body[data-config-mode="modern"] .sidebar-connections{flex-direction:row;border-top:0}body[data-config-mode="modern"] .config-tabs{flex-direction:row;overflow:auto}body[data-config-mode="modern"] .config-tab{width:auto}body[data-config-mode="modern"] .config-mode{display:none}body[data-config-mode="modern"] .widget-panel{display:block}body[data-config-mode="modern"] .widget-grid{max-height:none;padding:18px 12px} }
 @media (max-width:600px) { body[data-config-mode="modern"] .widget-card-body{grid-template-columns:1fr} }
 @media (max-width:720px) { .field-summary{grid-template-columns:1fr 1fr;margin:0 12px 12px}.field-toolbar{grid-template-columns:1fr;padding:0 12px 12px} }
