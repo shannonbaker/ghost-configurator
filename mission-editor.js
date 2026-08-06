@@ -38,6 +38,7 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
   let transform = null;
   let webMap = null;
   let webLayers = null;
+  let webTileLayer = null;
 
   const setDirty = (value = true) => {
     dirty = value;
@@ -98,17 +99,39 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
   function initialiseWebMap() {
     if (webMap || !window.L) return Boolean(webMap);
     webMap = window.L.map(elements.missionWebMap, { zoomControl: true });
-    window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(webMap);
+    updateBasemap();
     webLayers = window.L.layerGroup().addTo(webMap);
     webMap.setView([0, 0], 2);
     return true;
   }
 
+  function updateBasemap() {
+    if (!webMap) return;
+    if (webTileLayer) webMap.removeLayer(webTileLayer);
+    const source = {
+      satellite: {
+        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+        attribution: "Imagery &copy; Google",
+      },
+      hybrid: {
+        url: "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+        attribution: "Imagery &copy; Google",
+      },
+      street: {
+        url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      },
+    }[elements.missionBasemap.value] ?? null;
+    if (!source) return;
+    webTileLayer = window.L.tileLayer(source.url, {
+      maxZoom: 19, attribution: source.attribution,
+    }).addTo(webMap);
+    webTileLayer.bringToBack();
+  }
+
   function renderWebMap() {
     const webMode = elements.missionMapMode.value === "web";
+    elements.missionBasemapLabel.hidden = !webMode;
     elements.missionMapWrap.dataset.mapMode = webMode ? "web" : "plane";
     elements.missionMap.hidden = webMode;
     elements.missionWebMap.hidden = !webMode;
@@ -283,8 +306,13 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
     try { localStorage.setItem("ghost-mission-map-mode", elements.missionMapMode.value); } catch (_) {}
     renderMap();
   });
+  elements.missionBasemap.addEventListener("change", () => {
+    try { localStorage.setItem("ghost-mission-basemap", elements.missionBasemap.value); } catch (_) {}
+    updateBasemap();
+  });
   try {
     elements.missionMapMode.value = localStorage.getItem("ghost-mission-map-mode") || "web";
+    elements.missionBasemap.value = localStorage.getItem("ghost-mission-basemap") || "satellite";
   } catch (_) { elements.missionMapMode.value = "web"; }
   render();
   return { readFromFc, setConnected: (connected) => {
