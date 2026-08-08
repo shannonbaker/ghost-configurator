@@ -2,6 +2,60 @@ import { encodeMspV1, encodeMspV2, MspParser } from "./protocol.js";
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
+const MAVLINK_V1 = 0xfe;
+const MAVLINK_V2 = 0xfd;
+const MAVLINK_HEARTBEAT = 0;
+const MAVLINK_AUTOPILOT_ARDUPILOTMEGA = 3;
+
+// A small framing parser is sufficient here: identification is passive and the
+// heartbeat's fixed fields give us an additional sanity check without needing
+// to carry every MAVLink dialect's CRC-extra table in the configurator.
+export class MavlinkParser {
+  constructor() { this.buffer = new Uint8Array(); }
+
+  push(chunk) {
+    const joined = new Uint8Array(this.buffer.length + chunk.length);
+    joined.set(this.buffer);
+    joined.set(chunk, this.buffer.length);
+    this.buffer = joined;
+    const messages = [];
+    while (this.buffer.length) {
+      const start = this.buffer.findIndex((byte) => byte === MAVLINK_V1 || byte === MAVLINK_V2);
+      if (start < 0) { this.buffer = new Uint8Array(); break; }
+      if (start) this.buffer = this.buffer.slice(start);
+      if (this.buffer.length < 2) break;
+      const v2 = this.buffer[0] === MAVLINK_V2;
+      const headerLength = v2 ? 10 : 6;
+      if (this.buffer.length < headerLength) break;
+      const signed = v2 && Boolean(this.buffer[2] & 0x01);
+      const frameLength = headerLength + this.buffer[1] + 2 + (signed ? 13 : 0);
+      if (this.buffer.length < frameLength) break;
+      const frame = this.buffer.slice(0, frameLength);
+      this.buffer = this.buffer.slice(frameLength);
+      const messageId = v2
+        ? frame[7] | (frame[8] << 8) | (frame[9] << 16)
+        : frame[5];
+      const payload = frame.slice(headerLength, headerLength + frame[1]);
+      messages.push({ version: v2 ? 2 : 1, messageId, systemId: frame[v2 ? 5 : 3],
+        componentId: frame[v2 ? 6 : 4], payload });
+    }
+    return messages;
+  }
+}
+
+export function decodeMavlinkHeartbeat(message) {
+  if (message.messageId !== MAVLINK_HEARTBEAT || message.payload.length < 9 ||
+      message.payload[8] < 3) return null;
+  return {
+    ...message,
+    vehicleType: message.payload[4],
+    autopilot: message.payload[5],
+    baseMode: message.payload[6],
+    systemStatus: message.payload[7],
+    isArduPilot: message.payload[5] === MAVLINK_AUTOPILOT_ARDUPILOTMEGA,
+  };
+}
+
 export class SerialSession extends EventTarget {
   constructor() {
     super();
@@ -9,6 +63,8 @@ export class SerialSession extends EventTarget {
     this.reader = null;
     this.writer = null;
     this.parser = new MspParser();
+    this.mavlinkParser = new MavlinkParser();
+    this.lastMavlinkHeartbeat = null;
     this.pendingMsp = new Map();
     this.textDecoder = new TextDecoder();
     this.cliText = "";
@@ -43,6 +99,12 @@ export class SerialSession extends EventTarget {
           const { value, done } = await this.reader.read();
           if (done) break;
           if (!value) continue;
+          for (const message of this.mavlinkParser.push(value)) {
+            const heartbeat = decodeMavlinkHeartbeat(message);
+            if (!heartbeat) continue;
+            this.lastMavlinkHeartbeat = heartbeat;
+            this.dispatchEvent(new CustomEvent("mavlink-heartbeat", { detail: heartbeat }));
+          }
           if (this.cliMode) {
             this.cliText += this.textDecoder.decode(value, { stream: true });
             this.dispatchEvent(new CustomEvent("text", { detail: this.cliText }));
@@ -86,6 +148,22 @@ export class SerialSession extends EventTarget {
         this.pendingMsp.delete(command);
         reject(error);
       }
+    });
+  }
+
+  waitForMavlinkHeartbeat(timeoutMs = 1800) {
+    if (this.lastMavlinkHeartbeat) return Promise.resolve(this.lastMavlinkHeartbeat);
+    return new Promise((resolve, reject) => {
+      const receive = (event) => {
+        clearTimeout(timer);
+        this.removeEventListener("mavlink-heartbeat", receive);
+        resolve(event.detail);
+      };
+      const timer = setTimeout(() => {
+        this.removeEventListener("mavlink-heartbeat", receive);
+        reject(new Error("Timed out waiting for a MAVLink heartbeat"));
+      }, timeoutMs);
+      this.addEventListener("mavlink-heartbeat", receive);
     });
   }
 

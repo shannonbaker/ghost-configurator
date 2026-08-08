@@ -22,6 +22,7 @@ const elements = Object.fromEntries(
 );
 
 let session = null;
+let fcProtocol = null;
 let capabilities = readCachedFieldCatalogue();
 let configured = new Map();
 let ghostApi = null;
@@ -1008,6 +1009,35 @@ async function connect() {
     setConnected(true);
     setStatus("Reading flight-controller identity…");
 
+    const heartbeat = await session.waitForMavlinkHeartbeat(1800).catch(() => null);
+    if (heartbeat?.isArduPilot) {
+      fcProtocol = "mavlink";
+      const vehicleNames = new Map([
+        [1, "Fixed wing"], [2, "Multirotor"], [10, "Ground rover"],
+        [11, "Boat"], [12, "Submarine"], [13, "Hexarotor"],
+        [14, "Octorotor"], [15, "Tricopter"], [19, "VTOL"],
+      ]);
+      elements.fcIdentity.textContent = "ArduPilot (MAVLink)";
+      elements.boardIdentity.textContent = vehicleNames.get(heartbeat.vehicleType) ??
+        `MAV type ${heartbeat.vehicleType}`;
+      elements.interfaceIdentity.textContent = "GHOST_DP on DisplayPort UART";
+      ghostApi = null;
+      ghostDpApi = null;
+      widgetProfileSupported = false;
+      missionEditor?.setConnected(false);
+      if (capabilities.length) {
+        renderFields();
+        elements.apply.disabled = true;
+      }
+      const vrxConnected = await connectVrx(true);
+      setStatus(vrxConnected
+        ? "ArduPilot connected over MAVLink; VRX configuration uses the DisplayPort proxy."
+        : "ArduPilot connected over MAVLink. Start the COM10 DisplayPort proxy to configure the VRX.",
+      vrxConnected ? "good" : "bad");
+      return;
+    }
+
+    fcProtocol = "msp";
     const variant = decodeAscii(await session.requestMsp(MSP.FC_VARIANT));
     const version = await session.requestMsp(MSP.FC_VERSION);
     const board = decodeAscii(await session.requestMsp(MSP.BOARD_INFO));
@@ -1061,6 +1091,7 @@ async function connect() {
     setStatus(error.message, "bad");
     if (session?.port) await session.close().catch(() => {});
     session = null;
+    fcProtocol = null;
     setConnected(false);
   }
 }
@@ -1471,12 +1502,13 @@ async function connectVrx(automatic = false) {
     applyVrxInventory();
     setConnected(Boolean(session));
     setStatus("VRX bridge disconnected.");
-    return;
+    return false;
   }
   elements.connectVrx.disabled = true;
   try {
-    const api = session ? new FcRoutedVrxApi(session) : new VrxApi();
-    if (!session) await api.status();
+    const routedThroughFc = Boolean(session && fcProtocol !== "mavlink");
+    const api = routedThroughFc ? new FcRoutedVrxApi(session) : new VrxApi();
+    if (!routedThroughFc) await api.status();
     const inventory = await api.inventory();
     if (inventory.schemaVersion !== 1 || !Array.isArray(inventory.widgets))
       throw new Error("VRX returned an unsupported widget inventory.");
@@ -1486,7 +1518,8 @@ async function connectVrx(automatic = false) {
     applyVrxInventory();
     setConnected(Boolean(session));
     await loadProfile();
-    setStatus(`Connected to VRX${session ? " through FC USB" : ""} · ${inventory.widgets.length} installed widgets.`, "good");
+    setStatus(`Connected to VRX${routedThroughFc ? " through FC USB" : " through the DisplayPort proxy"} · ${inventory.widgets.length} installed widgets.`, "good");
+    return true;
   } catch (error) {
     vrxApi = null;
     vrxInventory = null;
@@ -1494,7 +1527,9 @@ async function connectVrx(automatic = false) {
       ? " Allow Local Network Access for this site in the browser, then try again."
       : "";
     const separator = permissionHint && !/[.!?]$/.test(error.message) ? "." : "";
-    if (!automatic) setStatus(`${session ? "FC-routed VRX" : "VRX bridge"}: ${error.message}${separator}${permissionHint}`, "bad");
+    const routeLabel = session && fcProtocol !== "mavlink" ? "FC-routed VRX" : "VRX bridge";
+    if (!automatic) setStatus(`${routeLabel}: ${error.message}${separator}${permissionHint}`, "bad");
+    return false;
   } finally {
     elements.connectVrx.disabled = false;
     setConnected(Boolean(session));
@@ -2036,6 +2071,7 @@ async function applyFields() {
     await session.runCli("save", 1500).catch(() => {}); // save reboots before another prompt
     await session.close().catch(() => {});
     session = null;
+    fcProtocol = null;
     setConnected(false);
     configured = new Map(selected.map((field) => [field.name, field]));
     setStatus("Configuration saved; flight controller is rebooting.", "good");
@@ -2052,6 +2088,7 @@ async function disconnect() {
     await session.close({ reboot: true }).catch(() => {});
     session = null;
   }
+  fcProtocol = null;
   capabilities = readCachedFieldCatalogue();
   ghostApi = null;
   ghostDpApi = null;
