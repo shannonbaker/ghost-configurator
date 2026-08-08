@@ -9,7 +9,7 @@ import {
   compactManifestOptions, parseManifestDependencies,
   resolveManifestDependencies,
 } from "./profile.js";
-import { FcRoutedVrxApi, VrxApi } from "./vrx-api.js";
+import { FcRoutedVrxApi, VrxApi } from "./vrx-api.js?v=2";
 import { createMissionEditor } from "./mission-editor.js?v=5";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,

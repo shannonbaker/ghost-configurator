@@ -32,7 +32,10 @@ const u32 = (value) => Uint8Array.of(value & 0xff, value >>> 8,
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export class VrxApi {
-  constructor(baseUrl = "http://127.0.0.1:48182/ghost-dp") {
+  constructor(baseUrl = globalThis.location?.hostname === "localhost" &&
+      globalThis.location?.port === "8000"
+    ? `${globalThis.location.origin}/ghost-dp`
+    : "http://127.0.0.1:48182/ghost-dp") {
     this.baseUrl = baseUrl.replace(/\/$/, "");
   }
 
