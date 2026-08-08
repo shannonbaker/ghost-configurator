@@ -1,5 +1,5 @@
 import { MSP, decodeAscii, parseCapabilities, parseConfiguredFields } from "./protocol.js";
-import { SerialSession } from "./serial.js";
+import { SerialSession } from "./serial.js?v=2";
 import { GhostMspApi } from "./ghost-api.js";
 import {
   GhostDpApi, deadbandPresentation, displayDeadband, rawDeadband,
