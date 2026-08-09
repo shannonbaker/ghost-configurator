@@ -1878,7 +1878,14 @@ async function applyProfile() {
       elements.applyProfile.disabled = true;
       setStatus("Storing the widget profile on the VRX...");
       const result = await vrxApi.uploadProfile(text);
-      elements.profileInfo.textContent = `Revision ${result.revision} | ${result.length} bytes`;
+      const readback = await vrxApi.readProfile();
+      const expected = text.endsWith("\n") ? text : `${text}\n`;
+      if (readback.crc32 !== result.crc32 || readback.length !== result.length ||
+          readback.text !== expected) {
+        throw new Error("VRX profile read-back did not match the saved settings.");
+      }
+      lastProfileSections = parseIni(readback.text);
+      elements.profileInfo.textContent = `Revision ${readback.revision} | ${readback.length} bytes`;
       setStatus("VRX profile installed. The native manager is applying it now.", "good");
       return;
     }
@@ -2166,6 +2173,16 @@ for (const id of ["ahiVisible", "sticksVisible", "statusVisible"]) {
       setStatus("Connect the VRX bridge or a compatible flight controller before changing widget enable state.", "bad");
       return;
     }
+    queueProfileSave();
+  });
+}
+for (const id of ["ahiReversePitch", "ahiReverseRoll"]) {
+  elements[id].addEventListener("change", () => {
+    if (!profileAvailable()) {
+      setStatus("Connect the VRX bridge or a compatible flight controller before changing AHI direction.", "bad");
+      return;
+    }
+    setStatus("Saving AHI direction to the VRX...");
     queueProfileSave();
   });
 }
