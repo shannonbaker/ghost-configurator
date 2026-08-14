@@ -60,6 +60,12 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def do_POST(self) -> None:
+        if self.path.startswith("/ghost-dp/"):
+            self.proxy()
+        else:
+            self.send_error(404)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()

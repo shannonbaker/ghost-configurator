@@ -27,7 +27,7 @@ function parseIni(text) {
 }
 
 test("VRX widget IDs resolve directly to matching schemas", async () => {
-  for (const id of ["ahi", "sticks", "rc_menu", "mini_map",
+  for (const id of ["ahi", "sticks", "rc_menu", "mini_map", "virtual_gate", "virtual_home",
     "ghost_dp_stats", "msp_dp_osd"]) {
     const sections = parseIni(await readFile(
       new URL(`../widgets/manifests/${id}.widget.ini`, import.meta.url), "utf8",

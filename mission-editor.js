@@ -39,6 +39,25 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
   let webMap = null;
   let webLayers = null;
   let webTileLayer = null;
+  let pointerStart = null;
+
+  function appendWaypoint(latitude, longitude) {
+    const altitude = items.at(-1)?.altitude ?? 30;
+    items.push(normaliseItem({ latitude, longitude, altitude }, items.length));
+    setDirty();
+    render();
+    setStatus(`Added waypoint ${items.length}. Right-click a waypoint marker to remove it.`, "good");
+  }
+
+  function removeWaypoint(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+    const number = index + 1;
+    items.splice(index, 1);
+    items = items.map(normaliseItem);
+    setDirty();
+    render();
+    setStatus(`Removed waypoint ${number}.`, "good");
+  }
 
   const setDirty = (value = true) => {
     dirty = value;
@@ -102,6 +121,7 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
     updateBasemap();
     webLayers = window.L.layerGroup().addTo(webMap);
     webMap.setView([0, 0], 2);
+    webMap.on("click", (event) => appendWaypoint(event.latlng.lat, event.latlng.lng));
     return true;
   }
 
@@ -161,6 +181,10 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
         const location = marker.getLatLng();
         item.latitude = location.lat; item.longitude = location.lng;
         setDirty(); render();
+      });
+      marker.on("contextmenu", (event) => {
+        window.L.DomEvent.stopPropagation(event);
+        removeWaypoint(index);
       });
     });
     if (positions.length === 1) webMap.setView(positions[0], 17);
@@ -266,6 +290,7 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
   });
   elements.missionMap.addEventListener("pointerdown", (event) => {
     const marker = event.target.closest(".mission-marker");
+    pointerStart = { x: event.clientX, y: event.clientY, marker: Boolean(marker) };
     if (!marker) return;
     dragIndex = Number(marker.dataset.index); elements.missionMap.setPointerCapture(event.pointerId);
   });
@@ -284,6 +309,24 @@ export function createMissionEditor(elements, { getApi, setStatus }) {
   const endDrag = () => { dragIndex = -1; };
   elements.missionMap.addEventListener("pointerup", endDrag);
   elements.missionMap.addEventListener("pointercancel", endDrag);
+  elements.missionMap.addEventListener("click", (event) => {
+    if (!transform || event.target.closest(".mission-marker")) return;
+    if (pointerStart && Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 4) return;
+    const rect = elements.missionMap.getBoundingClientRect();
+    const sx = (event.clientX - rect.left) / rect.width * 800;
+    const sy = (event.clientY - rect.top) / rect.height * 520;
+    const { area, bounds: b } = transform;
+    if (sx < area.left || sx > area.left + area.width || sy < area.top || sy > area.top + area.height) return;
+    const longitude = b.minLon + (sx - area.left) / area.width * (b.maxLon - b.minLon);
+    const latitude = b.maxLat - (sy - area.top) / area.height * (b.maxLat - b.minLat);
+    appendWaypoint(latitude, longitude);
+  });
+  elements.missionMap.addEventListener("contextmenu", (event) => {
+    const marker = event.target.closest(".mission-marker");
+    if (!marker) return;
+    event.preventDefault();
+    removeWaypoint(Number(marker.dataset.index));
+  });
   elements.missionWrite.addEventListener("click", async () => {
     const errors = validateMission(items, maximum);
     if (errors.length) return setStatus(errors.join(" "), "bad");

@@ -62,6 +62,19 @@ export class VrxApi {
       body: text.endsWith("\n") ? text : `${text}\n`,
     });
   }
+
+  async requestMsp(command, payload) {
+    if (command !== MSP_DISPLAYPORT) throw new Error("VRX bridge only relays MSP DisplayPort");
+    let binary = "";
+    for (const value of payload) binary += String.fromCharCode(value);
+    const result = await this.request("/fc/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payload: btoa(binary) }),
+    });
+    const decoded = atob(result.payload ?? "");
+    return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+  }
 }
 
 export class FcRoutedVrxApi {

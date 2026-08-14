@@ -1,13 +1,15 @@
 # GHOST Configurator
 
-Static, build-free browser application for configuring the Betaflight GHOST
-field stream and offline VRX widget profile.
+Static, build-free browser application for configuring the Betaflight and INAV
+GHOST field stream and offline VRX widget profile.
 
 ## Current scope
 
 - Connects through Web Serial at 115200 baud.
 - Reads FC variant, version, and board identity using MSPv1.
-- Enters the Betaflight CLI and discovers fields using `ghost_field list`.
+- Uses native GHOST DisplayPort discovery with Betaflight and INAV firmware.
+- Enters the Betaflight CLI and discovers fields using `ghost_field list` only
+  when native discovery is unavailable on older Betaflight firmware.
 - Reads the current `ghost_field` table.
 - Uses the transactional GHOST MSPv2 v1.0 API when supported.
 - Reads and atomically uploads the AHI/sticks widget profile through MSPv2.

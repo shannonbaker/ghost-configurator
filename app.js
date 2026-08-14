@@ -2,7 +2,8 @@ import { MSP, decodeAscii, parseCapabilities, parseConfiguredFields } from "./pr
 import { SerialSession } from "./serial.js?v=2";
 import { GhostMspApi } from "./ghost-api.js";
 import {
-  GhostDpApi, deadbandPresentation, displayDeadband, rawDeadband,
+  GhostDpApi, GHOST_CAP_MISSION_INT_READ,
+  deadbandPresentation, displayDeadband, rawDeadband,
 } from "./ghost-dp-api.js?v=2";
 import { thresholdPresentation, validateColourPolicy } from "./field-colour.js";
 import {
@@ -10,7 +11,7 @@ import {
   resolveManifestDependencies,
 } from "./profile.js";
 import { FcRoutedVrxApi, VrxApi } from "./vrx-api.js?v=2";
-import { createMissionEditor } from "./mission-editor.js?v=5";
+import { createMissionEditor } from "./mission-editor.js?v=6";
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, ahiCenterFromPosition, ahiRect,
   ahiSizeFromPixels, aspectConstrainedSize,
@@ -1045,8 +1046,8 @@ async function connect() {
     elements.fcIdentity.textContent = `${variant} ${versionText}`;
     elements.boardIdentity.textContent = board.slice(0, 4) || "Unknown board";
 
-    if (variant !== "BTFL") {
-      throw new Error(`POC CLI adapter supports BTFL; detected ${variant || "an unknown FC"}`);
+    if (!new Set(["BTFL", "INAV"]).has(variant)) {
+      throw new Error(`Native GHOST_DP supports BTFL and INAV; detected ${variant || "an unknown FC"}`);
     }
     if (!ghostDpApi) {
       try {
@@ -1077,8 +1078,11 @@ async function connect() {
         setStatus("Connected using native GHOST DisplayPort discovery.", "good");
       } catch (_) {
         ghostDpApi = null;
+        if (variant !== "BTFL") {
+          throw new Error(`${variant} connected, but native GHOST_DP discovery did not respond. Confirm the MSP_GHOST_DP build option is enabled.`);
+        }
         elements.interfaceIdentity.textContent = "Legacy CLI fallback";
-        setStatus("Connected. This firmware will use the legacy CLI adapter.", "good");
+        setStatus("Connected. This Betaflight firmware will use the legacy CLI adapter.", "good");
       }
     }
     if (window.confirm("Load the saved GHOST configuration from this flight controller?")) {
@@ -1237,7 +1241,7 @@ function bindBuiltInMenuWidget(parsed) {
 
 function createManifestControl(definition, key, option) {
   const input = document.createElement(
-    option.type === "select" || option.type === "field" ? "select" : "input",
+    ["select", "field", "font_file", "lens_profile"].includes(option.type) ? "select" : "input",
   );
   input.dataset.manifestWidget = definition.widget.id;
   input.dataset.manifestOption = key;
@@ -1249,6 +1253,37 @@ function createManifestControl(definition, key, option) {
       ? `RC${numericId - 31}` : String(choice.value);
     input.append(choice);
     input.value = choice.value;
+  } else if (option.type === "font_file") {
+    const identity = elements.fcIdentity?.textContent?.toUpperCase() ?? "";
+    const family = fcProtocol === "mavlink" || identity.includes("ARDU") ? "ARDU"
+      : identity.includes("INAV") ? "INAV" : identity.includes("BTFL") ? "BTFL" : "";
+    const automatic = document.createElement("option");
+    automatic.value = "auto";
+    automatic.textContent = family ? `Automatic (${family})` : "Automatic (FC family)";
+    input.append(automatic);
+    const files = Array.isArray(vrxInventory?.osdFonts) ? vrxInventory.osdFonts : [];
+    for (const file of files.filter((name) => typeof name === "string" &&
+      (!family || name.toUpperCase().includes(family)))) {
+      const choice = document.createElement("option");
+      choice.value = file;
+      choice.textContent = file;
+      input.append(choice);
+    }
+    input.value = option.default ?? "auto";
+  } else if (option.type === "lens_profile") {
+    const automatic = document.createElement("option");
+    automatic.value = "none";
+    automatic.textContent = "None (rectilinear)";
+    input.append(automatic);
+    const files = Array.isArray(vrxInventory?.lensProfiles) ? vrxInventory.lensProfiles : [];
+    for (const file of files.filter((name) => typeof name === "string" &&
+      name.toLowerCase().endsWith(".json"))) {
+      const choice = document.createElement("option");
+      choice.value = file;
+      choice.textContent = file.replace(/\.json$/i, "");
+      input.append(choice);
+    }
+    input.value = option.default ?? "none";
   } else if (option.type === "select") {
     const values = (option.values ?? "").split(",")
       .map((value) => value.trim()).filter(Boolean);
@@ -1422,6 +1457,9 @@ function renderManifestWidget(parsed) {
     control.addEventListener("input", refreshLayout);
     control.addEventListener("change", () => {
       refreshLayout();
+      if (definition.widget.id === "virtual_home" && key === "lens_profile") {
+        updateVirtualHomeFov(definition);
+      }
       if (option.type === "field" ||
           definition.dependencies.some((dependency) => dependency.selector === key ||
             dependency.rateOption === key)) {
@@ -1441,11 +1479,30 @@ function renderManifestWidget(parsed) {
   attachWidgetSaveButton(definition);
   elements.manifestWidgets.append(fieldset);
   manifestWidgets.set(definition.widget.id, definition);
+  if (definition.widget.id === "virtual_home") updateVirtualHomeFov(definition);
   initializeWidgetCard(fieldset);
   if (definition.widget.geometry_x && definition.widget.geometry_y) {
     attachManifestPreview(definition);
   }
   if (lastProfileSections) populateManifestProfiles(lastProfileSections);
+}
+
+function updateVirtualHomeFov(definition = manifestWidgets.get("virtual_home")) {
+  const lens = definition?.controls.get("lens_profile");
+  const fov = definition?.controls.get("field_of_view");
+  if (!lens || !fov) return;
+  const derived = Number(vrxInventory?.lensProfileFovs?.[lens.value]);
+  const selected = lens.value && lens.value !== "none" && Number.isFinite(derived);
+  if (selected) {
+    if (!fov.disabled) fov.dataset.profileValue = fov.value;
+    fov.value = derived.toFixed(1);
+    fov.disabled = true;
+    fov.title = `Derived from ${lens.value}`;
+  } else {
+    if (fov.disabled && fov.dataset.profileValue) fov.value = fov.dataset.profileValue;
+    fov.disabled = false;
+    fov.title = "Manual horizontal field of view";
+  }
 }
 
 async function loadWidgetManifests(inventory) {
@@ -1518,6 +1575,20 @@ async function connectVrx(automatic = false) {
     applyVrxInventory();
     setConnected(Boolean(session));
     await loadProfile();
+    if (fcProtocol === "mavlink" && typeof vrxApi.requestMsp === "function") {
+      try {
+        const missionApi = new GhostDpApi(vrxApi);
+        const missionCapabilities = await missionApi.getCapabilities();
+        if (!(missionCapabilities.flags & GHOST_CAP_MISSION_INT_READ)) {
+          throw new Error("FC does not advertise mission reading");
+        }
+        ghostDpApi = missionApi;
+        missionEditor?.setConnected(true);
+      } catch (_) {
+        ghostDpApi = null;
+        missionEditor?.setConnected(false);
+      }
+    }
     setStatus(`Connected to VRX${routedThroughFc ? " through FC USB" : " through the DisplayPort proxy"} · ${inventory.widgets.length} installed widgets.`, "good");
     return true;
   } catch (error) {
@@ -1596,6 +1667,7 @@ function populateManifestProfiles(sections) {
     }
   }
   populateStickMenuProfiles(sections);
+  updateVirtualHomeFov();
 }
 
 function populateProfile(text) {
@@ -1708,7 +1780,8 @@ function numberValue(id, minimum, maximum) {
 function manifestOptionValue(definition, key, option) {
   const control = definition.controls.get(key);
   if (option.type === "boolean") return String(control.checked);
-  let value = control.value.trim();
+  let value = (control.disabled && control.dataset.profileValue !== undefined
+    ? control.dataset.profileValue : control.value).trim();
   if (option.type === "field") {
     const numericId = Number(value);
     if (!Number.isInteger(numericId)) {
@@ -1796,10 +1869,12 @@ function buildProfile() {
     `stale_timeout_ms=${numberValue("statusStale", 0, 60000)}`, "",
   ];
   for (const definition of manifestWidgets.values()) {
-    const values = compactManifestOptions(
-      definition.options, definition.visibleKey,
-      (key, option) => manifestOptionValue(definition, key, option),
-    );
+    const valueFor = (key, option) => manifestOptionValue(definition, key, option);
+    const visible = truthy(valueFor(definition.visibleKey,
+      definition.options.get(definition.visibleKey)));
+    const values = ["virtual_gate", "virtual_home"].includes(definition.widget.id) && visible
+      ? [...definition.options].map(([key, option]) => [key, valueFor(key, option)])
+      : compactManifestOptions(definition.options, definition.visibleKey, valueFor);
     if (!values) continue;
     lines.push(`[${definition.widget.section}]`);
     for (const [key, value] of values) lines.push(key + "=" + value);

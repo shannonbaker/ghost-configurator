@@ -1,5 +1,5 @@
-const CACHE = "ghost-configurator-poc-v132";
-const ASSETS = ["./", "./index.html", "./styles.css?v=61", "./app.js?v=101", "./mission-editor.js?v=5", "./profile.js", "./layout.js", "./serial.js", "./protocol.js", "./ghost-api.js", "./ghost-dp-api.js?v=2", "./field-colour.js", "./vrx-api.js", "./widgets/default.ini", "./ghost-logo.png", "./icon-192.png", "./icon-512.png", "./manifest.webmanifest"];
+const CACHE = "ghost-configurator-poc-v139";
+const ASSETS = ["./", "./index.html", "./styles.css?v=61", "./app.js?v=107", "./mission-editor.js?v=6", "./profile.js", "./layout.js", "./serial.js", "./protocol.js", "./ghost-api.js", "./ghost-dp-api.js?v=2", "./field-colour.js", "./vrx-api.js?v=2", "./widgets/default.ini", "./ghost-logo.png", "./icon-192.png", "./icon-512.png", "./manifest.webmanifest"];
 self.addEventListener("install", (event) => event.waitUntil(
   caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()),
 ));
