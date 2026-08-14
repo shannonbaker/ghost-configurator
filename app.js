@@ -1564,9 +1564,19 @@ async function connectVrx(automatic = false) {
   elements.connectVrx.disabled = true;
   try {
     const routedThroughFc = Boolean(session && fcProtocol !== "mavlink");
-    const api = routedThroughFc ? new FcRoutedVrxApi(session) : new VrxApi();
-    if (!routedThroughFc) await api.status();
-    const inventory = await api.inventory();
+    let api = routedThroughFc ? new FcRoutedVrxApi(session) : new VrxApi();
+    let activeRoute = routedThroughFc ? "FC USB" : "DisplayPort proxy";
+    let inventory;
+    try {
+      if (!routedThroughFc) await api.status();
+      inventory = await api.inventory();
+    } catch (routedError) {
+      if (!routedThroughFc) throw routedError;
+      api = new VrxApi();
+      await api.status();
+      inventory = await api.inventory();
+      activeRoute = "DisplayPort proxy (FC USB relay unavailable)";
+    }
     if (inventory.schemaVersion !== 1 || !Array.isArray(inventory.widgets))
       throw new Error("VRX returned an unsupported widget inventory.");
     vrxApi = api;
@@ -1589,7 +1599,7 @@ async function connectVrx(automatic = false) {
         missionEditor?.setConnected(false);
       }
     }
-    setStatus(`Connected to VRX${routedThroughFc ? " through FC USB" : " through the DisplayPort proxy"} · ${inventory.widgets.length} installed widgets.`, "good");
+    setStatus(`Connected to VRX through ${activeRoute} · ${inventory.widgets.length} installed widgets.`, "good");
     return true;
   } catch (error) {
     vrxApi = null;
