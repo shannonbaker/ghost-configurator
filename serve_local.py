@@ -11,7 +11,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-BRIDGE = "http://127.0.0.1:48182"
+BRIDGE = os.environ.get("GHOST_VRX_BRIDGE", "http://127.0.0.1:48182").rstrip("/")
 
 
 class Handler(SimpleHTTPRequestHandler):
